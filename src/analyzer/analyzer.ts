@@ -13,8 +13,8 @@ type RawBlock = {
   blockName: string;
   signature: string;
   body: string;
-  startIndex: number; // ✅ início do bloco (header)
-  bodyStartIndex: number; // início do corpo (após assinatura)
+  startIndex: number;
+  bodyStartIndex: number;
 };
 
 type Assignment = {
@@ -61,7 +61,6 @@ type ParamInfo = {
 type SqlVarFinding = { varName: string; varKey: string; absIndex: number };
 
 function fmtWarningLines(lines: string[]): string {
-  // espaço entre as “linhas”
   return lines.join("\n\n");
 }
 
@@ -72,7 +71,6 @@ export function analyzeDocument(
   const masked = maskCommentsPreserveLayout(sourceText);
   const lineIndex = buildLineIndex(sourceText);
 
-  // Global Private/Static (inclui SetPrvt)
   const declaredPrivOrStatic = collectGlobalPrivateAndStatic(masked);
 
   const setPrvtFindings = collectSetPrvt(masked);
@@ -84,7 +82,6 @@ export function analyzeDocument(
 
   const issues: Issue[] = [];
 
-  // Warning SetPrvt
   for (const call of setPrvtFindings.calls) {
     const pos = indexToLineCol(lineIndex, call.absIndex);
     const suggestion = call.vars
@@ -105,7 +102,6 @@ export function analyzeDocument(
     });
   }
 
-  // Nome/tipo em Static/Private globais
   for (const d of globalDecls) {
     const naming = validateNameRuleStrict(d.varName);
     if (!naming.ok) {
@@ -153,9 +149,14 @@ export function analyzeDocument(
     }
   }
 
-  // Unused global Static/Private
   const maskedNoGlobalDeclLines = maskDeclarationLines(masked, "global");
+
   for (const d of globalDecls) {
+    // ✅ IGNORA unused para cCadastro/aRotina (uso indireto)
+    if (isUnusedIgnoredVar(d.varName)) {
+      continue;
+    }
+
     const count = countIdentifierUsage(maskedNoGlobalDeclLines, d.varName);
 
     if (count === 0) {
@@ -218,7 +219,6 @@ export function analyzeDocument(
     const localsCandidates = new Map<string, VarFirstOccur>();
     const defaultsCandidates = new Map<string, VarFirstOccur>();
 
-    // Sugestões Local (atribuições)
     for (const asg of assignments) {
       const varName = asg.varName;
 
@@ -269,7 +269,6 @@ export function analyzeDocument(
       }
     }
 
-    // ✅ Default para todo parâmetro sem Default (mesmo sem atribuição)
     for (const p of params) {
       if (defaultsDefined.has(p.key)) {
         continue;
@@ -288,11 +287,8 @@ export function analyzeDocument(
       }
     }
 
-    // ==========================
-    // Regra: SQL em string -> sugerir TCQUERY + MpSysOpenQuery
-    // ==========================
+    // SQL string => TCQUERY + MpSysOpenQuery
     {
-      // se já usa TCQUERY no bloco, não alertar
       const alreadyHasTcQuery = hasTcQueryUsage(b.body);
       if (!alreadyHasTcQuery) {
         const sqlVars = collectSqlStringVarsFromAssignments(
@@ -349,7 +345,6 @@ export function analyzeDocument(
       });
     }
 
-    // Unused decls no bloco
     const bodyForUsage = maskDeclarationLines(b.body, "block");
 
     const declsToCheckUnused: Declaration[] = [
@@ -360,6 +355,11 @@ export function analyzeDocument(
     ];
 
     for (const d of declsToCheckUnused) {
+      // ✅ IGNORA unused para cCadastro/aRotina
+      if (isUnusedIgnoredVar(d.varName)) {
+        continue;
+      }
+
       if (startsWithUpperAfterUnderscore(d.varName)) {
         continue;
       }
@@ -382,54 +382,6 @@ export function analyzeDocument(
             "Sugestão: remover a declaração",
           ]),
         });
-      }
-    }
-
-    // Validar nome/tipo em declarações no bloco
-    for (const d of declsToCheckUnused) {
-      const naming = validateNameRuleStrict(d.varName);
-      if (!naming.ok) {
-        const pos = indexToLineCol(lineIndex, d.absIndex);
-        issues.push({
-          ruleId: "naming/prefix-style",
-          severity: "error",
-          line: pos.line,
-          column: pos.column,
-          message: fmtWarningLines([
-            `Escopo: ${d.kind}`,
-            `Função: ${b.blockType} ${b.blockName}`,
-            `Variável: "${d.varName}"`,
-            `Sugestão: ajustar nomenclatura. ${naming.reason}`,
-          ]),
-        });
-      }
-
-      if (d.rhsRaw && d.rhsRaw.trim().length > 0) {
-        const inferred = inferTypeFromRhs(d.rhsRaw);
-        const expected = expectedTypeFromVarName(d.varName);
-
-        if (
-          inferred !== "unknown" &&
-          inferred !== "nil" &&
-          expected !== "unknown" &&
-          inferred !== expected
-        ) {
-          const pos = indexToLineCol(lineIndex, d.absIndex);
-          issues.push({
-            ruleId: "hungarian/type-mismatch",
-            severity: "error",
-            line: pos.line,
-            column: pos.column,
-            message: fmtWarningLines([
-              `Escopo: ${d.kind}`,
-              `Função: ${b.blockType} ${b.blockName}`,
-              `Variável: "${d.varName}"`,
-              `Sugestão: tipo incompatível. Esperado ${expected}, recebeu ${inferred} (${previewRhs(
-                d.rhsRaw
-              )}).`,
-            ]),
-          });
-        }
       }
     }
   }
@@ -485,7 +437,6 @@ function maskCommentsPreserveLayout(input: string): string {
 function extractBlocksByNextStart(text: string): RawBlock[] {
   const blocks: RawBlock[] = [];
 
-  // ✅ mais robusto (pega UserFunction, Function, etc.)
   const startRe =
     /\b(User\s*Function|UserFunction|Static\s*Function|StaticFunction|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)\s*(\([^\)]*\))?/gi;
 
@@ -515,7 +466,6 @@ function extractBlocksByNextStart(text: string): RawBlock[] {
     const end = next ? next.index : text.length;
     const blockText = text.slice(cur.end, end);
 
-    // Para funções/métodos, corta no primeiro Return
     const stopRe = /\bReturn\b/gi;
     const stop = stopRe.exec(blockText);
     const bodyEndInBlock = stop ? stop.index : blockText.length;
@@ -567,8 +517,6 @@ function normalizeBlockType(raw: string): BlockType {
 function collectAssignments(body: string): Assignment[] {
   const list: Assignment[] = [];
 
-  // esquerda de :=, +=, -=, *=, /=
-  // evita == e !=
   const re =
     /\b([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|\/=|:=)\s*(?![=])([^\r\n]*)/g;
 
@@ -692,9 +640,12 @@ function collectDeclaredPrivatesInBlock(body: string): Set<string> {
   return set;
 }
 
-/* =========================
-   Global Private/Static (inclui cabeçalho)
-   ========================= */
+function findFirstBlockStartIndex(text: string): number {
+  const re =
+    /\b(User\s*Function|UserFunction|Static\s*Function|StaticFunction|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i;
+  const m = re.exec(text);
+  return m ? m.index : text.length;
+}
 
 function collectGlobalPrivateAndStatic(text: string): Set<string> {
   const set = new Set<string>();
@@ -733,8 +684,6 @@ function collectGlobalPrivateAndStatic(text: string): Set<string> {
 
 function collectGlobalDeclarationsWithInit(text: string): Declaration[] {
   const decls: Declaration[] = [];
-
-  // ✅ corta no INÍCIO real do primeiro bloco
   const head = text.slice(0, findFirstBlockStartIndex(text));
 
   const re =
@@ -756,17 +705,6 @@ function collectGlobalDeclarationsWithInit(text: string): Declaration[] {
 
   return decls;
 }
-
-function findFirstBlockStartIndex(text: string): number {
-  const re =
-    /\b(User\s*Function|UserFunction|Static\s*Function|StaticFunction|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i;
-  const m = re.exec(text);
-  return m ? m.index : text.length;
-}
-
-/* =========================
-   Declarações com init (Local/Private/Static)
-   ========================= */
 
 function collectLocalDeclarationsWithInit(
   body: string,
@@ -833,11 +771,14 @@ function collectPrivateDeclarationsWithInit(
 }
 
 /* =========================
-   Naming / Tipo
+   Utilidades de nome / tipo
    ========================= */
 
-// Variáveis que podem ser declaradas mas usadas indiretamente (por chamadas padrão do Protheus)
-// Ex: ExecAuto/MsExecAuto/rotinas padrão que inspecionam essas variáveis
+function normalizeVarKey(name: string): string {
+  return name.replace(/^_+/, "").toLowerCase();
+}
+
+// ✅ NOVO: ignore list para UNUSED
 const UNUSED_IGNORE_KEYS = new Set<string>([
   normalizeVarKey("cCadastro"),
   normalizeVarKey("aRotina"),
@@ -845,10 +786,6 @@ const UNUSED_IGNORE_KEYS = new Set<string>([
 
 function isUnusedIgnoredVar(varName: string): boolean {
   return UNUSED_IGNORE_KEYS.has(normalizeVarKey(varName));
-}
-
-function normalizeVarKey(name: string): string {
-  return name.replace(/^_+/, "").toLowerCase();
 }
 
 function getFirstSignificantChar(name: string): string {
@@ -981,16 +918,12 @@ function makeSuggestion(
 ): Suggestion {
   return {
     kind,
-    varName, // ✅ seu types.ts exige
+    varName,
     blockName,
     blockType,
     text: `${kind} ${varName} := ${defaultInitializerForVar(varName)}`,
   };
 }
-
-/* =========================
-   SetPrvt
-   ========================= */
 
 function collectSetPrvt(text: string): {
   vars: Set<string>;
@@ -1019,10 +952,6 @@ function collectSetPrvt(text: string): {
 
   return { vars, calls };
 }
-
-/* =========================
-   Usage counter
-   ========================= */
 
 function maskDeclarationLines(text: string, mode: "global" | "block"): string {
   const lines = text.split(/\r?\n/);
@@ -1071,16 +1000,11 @@ function countIdentifierUsage(text: string, name: string): number {
     if (prev2 === "->") {
       continue;
     }
-
     count++;
   }
 
   return count;
 }
-
-/* =========================
-   SQL string -> TCQUERY
-   ========================= */
 
 function hasTcQueryUsage(text: string): boolean {
   return /\bTCQUERY\b/i.test(text);
@@ -1169,10 +1093,6 @@ function blockUsesSqlOpenByString(
 
   return false;
 }
-
-/* =========================
-   Escape / Linha e coluna
-   ========================= */
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
