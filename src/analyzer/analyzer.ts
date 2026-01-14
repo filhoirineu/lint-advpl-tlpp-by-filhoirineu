@@ -82,6 +82,19 @@ export function analyzeDocument(
 
   const issues: Issue[] = [];
 
+  // ✅ Detectar declarações múltiplas no cabeçalho (GLOBAL)
+  {
+    const head = masked.slice(0, findFirstBlockStartIndex(masked));
+    issues.push(
+      ...collectMultiDeclIssues(head, lineIndex, "Global", "(Global)", 0)
+    );
+
+    // ✅ NOVO: declarações sem inicialização no cabeçalho (GLOBAL)
+    issues.push(
+      ...collectNoInitDeclIssues(head, lineIndex, "Global", "(Global)", 0)
+    );
+  }
+
   for (const call of setPrvtFindings.calls) {
     const pos = indexToLineCol(lineIndex, call.absIndex);
     const suggestion = call.vars
@@ -181,6 +194,28 @@ export function analyzeDocument(
   const blockResults: BlockResult[] = [];
 
   for (const b of blocks) {
+    // ✅ Detectar declarações múltiplas dentro do bloco
+    issues.push(
+      ...collectMultiDeclIssues(
+        b.body,
+        lineIndex,
+        "Bloco",
+        `${b.blockType} ${b.blockName}`,
+        b.bodyStartIndex
+      )
+    );
+
+    // ✅ NOVO: declarações sem inicialização dentro do bloco
+    issues.push(
+      ...collectNoInitDeclIssues(
+        b.body,
+        lineIndex,
+        "Bloco",
+        `${b.blockType} ${b.blockName}`,
+        b.bodyStartIndex
+      )
+    );
+
     const params = extractParamsFromSignatureDetailed(b.signature);
     const paramsKeys = new Set<string>(params.map((p) => p.key));
 
@@ -771,6 +806,118 @@ function collectPrivateDeclarationsWithInit(
 }
 
 /* =========================
+   style/multi-declaration
+   ========================= */
+
+function collectMultiDeclIssues(
+  text: string,
+  lineIndex: LineIndex,
+  scopeLabel: string,
+  functionLabel: string,
+  absBaseIndex: number
+): Issue[] {
+  const issues: Issue[] = [];
+
+  // Linha inteira com Local/Private/Static/Default e múltiplas variáveis separadas por vírgula
+  // Ex: Local oMainWnd, oDlg2
+  // Obs: não pega linhas com := (intencional)
+  const re =
+    /^\s*(Local|Private|Static|Default)\b(?!\s+Function)\s+([A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*[A-Za-z_][A-Za-z0-9_]*)+)\s*$/gim;
+
+  let m: RegExpExecArray | null = null;
+  while ((m = re.exec(text))) {
+    const declKind = m[1] as "Local" | "Private" | "Static" | "Default";
+    const listRaw = m[2] ?? "";
+
+    const vars = listRaw
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+
+    if (vars.length < 2) {
+      continue;
+    }
+
+    const absIndex = absBaseIndex + m.index;
+    const pos = indexToLineCol(lineIndex, absIndex);
+
+    const suggestionLines = vars
+      .map((v) => `${declKind} ${v} := ${defaultInitializerForVar(v)}`)
+      .join("\n");
+
+    issues.push({
+      ruleId: "style/multi-declaration",
+      severity: "warning",
+      line: pos.line,
+      column: pos.column,
+      message: fmtWarningLines([
+        `Escopo: ${scopeLabel}`,
+        `Função: ${functionLabel}`,
+        `Variável: declaração múltipla na mesma linha (${declKind})`,
+        "Sugestão: declarar uma variável por linha (melhor leitura/diff):",
+        suggestionLines,
+      ]),
+    });
+  }
+
+  return issues;
+}
+
+/* =========================
+   NOVO: declaração sem inicialização
+   ========================= */
+
+function collectNoInitDeclIssues(
+  text: string,
+  lineIndex: LineIndex,
+  scopeLabel: string,
+  functionLabel: string,
+  absBaseIndex: number
+): Issue[] {
+  const issues: Issue[] = [];
+
+  // Pega linhas tipo:
+  // Local cMsg
+  // Private nX
+  // Static aHeader
+  // Default cTipo
+  //
+  // Regras:
+  // - Não pega se tiver vírgula (multi-decl) -> já tem regra própria
+  // - Não pega se tiver ":=" (já inicializado)
+  const re =
+    /^\s*(Local|Private|Static|Default)\b(?!\s+Function)\s+([A-Za-z_][A-Za-z0-9_]*)\s*$/gim;
+
+  let m: RegExpExecArray | null = null;
+  while ((m = re.exec(text))) {
+    const declKind = m[1] as "Local" | "Private" | "Static" | "Default";
+    const varName = m[2];
+
+    // Case: se por algum motivo vier com "Local a,b" (vírgula), ignora (multi-decl rule cobre)
+    if (varName.includes(",")) continue;
+
+    const absIndex = absBaseIndex + m.index;
+    const pos = indexToLineCol(lineIndex, absIndex);
+
+    issues.push({
+      ruleId: "declaration/missing-initializer",
+      severity: "warning",
+      line: pos.line,
+      column: pos.column,
+      message: fmtWarningLines([
+        `Escopo: ${scopeLabel}`,
+        `Função: ${functionLabel}`,
+        `Variável: "${varName}" declarado sem valor inicial (${declKind})`,
+        "Sugestão: inicializar seguindo o padrão:",
+        `${declKind} ${varName} := ${defaultInitializerForVar(varName)}`,
+      ]),
+    });
+  }
+
+  return issues;
+}
+
+/* =========================
    Utilidades de nome / tipo
    ========================= */
 
@@ -778,7 +925,7 @@ function normalizeVarKey(name: string): string {
   return name.replace(/^_+/, "").toLowerCase();
 }
 
-// ✅ NOVO: ignore list para UNUSED
+// ignore list para UNUSED
 const UNUSED_IGNORE_KEYS = new Set<string>([
   normalizeVarKey("cCadastro"),
   normalizeVarKey("aRotina"),
