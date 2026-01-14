@@ -1,151 +1,126 @@
 import * as vscode from "vscode";
 import { analyzeDocument } from "./analyzer/analyzer";
 import { LintSidebarProvider } from "./sidebar/LintSidebarProvider";
+import { AnalysisResult } from "./analyzer/types";
 
-function isAdvplFile(fileName: string): boolean {
-  const f = fileName.toLowerCase();
-  return f.endsWith(".prw") || f.endsWith(".prx") || f.endsWith(".tlpp");
-}
+let provider: LintSidebarProvider | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  console.log("LINT >>> activate() iniciou");
+  provider = new LintSidebarProvider(context);
 
-  const provider = new LintSidebarProvider(context);
-
-  // Sidebar provider (Webview)
+  // Sidebar view
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
-      "lintAdvplTlpp.sidebar",
+      LintSidebarProvider.viewType,
       provider,
       { webviewOptions: { retainContextWhenHidden: true } }
     )
   );
 
-  // ==========
-  // ANALYZER
-  // ==========
-  const analyzeIfPossible = async (reason: string) => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      return;
-    }
-
-    const doc = editor.document;
-    if (!isAdvplFile(doc.fileName)) {
-      return;
-    }
-
-    const result = analyzeDocument(doc.getText(), doc.fileName);
-    provider.setResult(result);
-
-    console.log(`LINT >>> analisado (${reason}): ${doc.fileName}`);
-  };
-
-  // Command: Analyze current file (manual / sob demanda)
-  // ✅ NÃO dá foco na sidebar
+  // Command: analyze current file (always uses active editor text)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "lintAdvplTlpp.analyzeCurrentFile",
       async () => {
-        await analyzeIfPossible("manual");
-        vscode.window.showInformationMessage(
-          "LINT: Análise atualizada (sem foco)."
-        );
+        try {
+          const editor = vscode.window.activeTextEditor;
+          if (!editor) {
+            vscode.window.showWarningMessage("LINT: Nenhum editor ativo.");
+            return;
+          }
+
+          const doc = editor.document;
+
+          // ✅ SOB DEMANDA: só aceita arquivos texto (e preferencialmente .prw/.tlpp)
+          const fileName = doc.fileName ?? "Untitled";
+
+          const text = doc.getText(); // ✅ SEMPRE o texto atual do VS Code
+          const result = safeAnalyze(text, fileName);
+
+          provider?.setResult(result, doc.uri, doc.version);
+
+          // (opcional) Toast curto. Se você quiser remover depois, é só apagar esta linha.
+          vscode.window.showInformationMessage("LINT: Análise concluída");
+        } catch (e: any) {
+          vscode.window.showErrorMessage(
+            "LINT: Falha ao analisar arquivo: " + (e?.message ?? String(e))
+          );
+        }
       }
     )
   );
 
-  // ==========
-  // EXPORT TXT
-  // ==========
+  // Command: export txt
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "lintAdvplTlpp.exportReportTxt",
-      async () => {
-        const last = provider.getLastResult();
+    vscode.commands.registerCommand("lintAdvplTlpp.exportTxt", async () => {
+      try {
+        const last = provider?.getLastResult();
         if (!last) {
           vscode.window.showWarningMessage(
-            "LINT: Nenhum resultado para exportar. Rode a análise primeiro."
+            "LINT: Nenhum resultado para exportar."
           );
           return;
         }
 
-        const activeDoc = vscode.window.activeTextEditor?.document;
-        if (!activeDoc) {
-          vscode.window.showWarningMessage(
-            "LINT: Nenhum arquivo ativo para definir o local do TXT."
-          );
+        const uri = await vscode.window.showSaveDialog({
+          saveLabel: "Exportar TXT",
+          filters: { Text: ["txt"] },
+          defaultUri: vscode.Uri.file(
+            (last.fileName || "lint-report").replace(/[\\/:*?"<>|]/g, "_") +
+              ".lint.txt"
+          ),
+        });
+
+        if (!uri) {
           return;
         }
 
-        const txt = provider.buildTxtReport(last);
-
-        const path = require("path") as typeof import("path");
-        const dir = path.dirname(activeDoc.uri.fsPath);
-        const base = path.basename(activeDoc.uri.fsPath);
-
-        const outUri = vscode.Uri.joinPath(
-          vscode.Uri.file(dir),
-          `${base}.lint.txt`
+        const content = provider!.buildTxtReport(last);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
+        vscode.window.showInformationMessage(
+          "LINT: TXT exportado com sucesso."
         );
-
-        await vscode.workspace.fs.writeFile(outUri, Buffer.from(txt, "utf8"));
-
-        vscode.window.showInformationMessage("LINT: TXT exportado.");
+      } catch (e: any) {
+        vscode.window.showErrorMessage(
+          "LINT: Falha ao exportar TXT: " + (e?.message ?? String(e))
+        );
       }
-    )
-  );
-
-  // ===========================
-  // AUTO UPDATE (background, leve)
-  // ===========================
-  let debounceTimer: NodeJS.Timeout | undefined;
-
-  const scheduleAutoAnalyze = (reason: string) => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-    debounceTimer = setTimeout(() => {
-      analyzeIfPossible(reason).catch((err) => console.error(err));
-    }, 250);
-  };
-
-  // 1) Ao trocar de arquivo (editor ativo mudou)
-  context.subscriptions.push(
-    vscode.window.onDidChangeActiveTextEditor((ed) => {
-      if (!ed) {
-        return;
-      }
-      if (!isAdvplFile(ed.document.fileName)) {
-        return;
-      }
-      scheduleAutoAnalyze("active-editor-changed");
     })
   );
 
-  // 2) Ao salvar
+  // ✅ IMPORTANTE: ao salvar, se o arquivo salvo é o mesmo do último resultado,
+  // atualiza SILENCIOSAMENTE para corrigir linha/coluna no webview.
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument((doc) => {
-      if (!isAdvplFile(doc.fileName)) {
-        return;
-      }
+      try {
+        if (!provider) {
+          return;
+        }
 
-      const active = vscode.window.activeTextEditor?.document;
-      if (!active || active.uri.toString() !== doc.uri.toString()) {
-        return;
-      }
+        const lastUri = provider.getLastUri();
+        if (!lastUri) {
+          return;
+        }
 
-      scheduleAutoAnalyze("saved");
+        if (doc.uri.toString() !== lastUri) {
+          return;
+        }
+
+        const text = doc.getText();
+        const result = safeAnalyze(text, doc.fileName);
+
+        // ✅ sem toast
+        provider.setResult(result, doc.uri, doc.version);
+      } catch {
+        // Silencioso de propósito
+      }
     })
   );
-
-  // 3) Startup: se já estiver com .prw aberto, atualiza em background
-  if (vscode.window.activeTextEditor) {
-    const doc = vscode.window.activeTextEditor.document;
-    if (isAdvplFile(doc.fileName)) {
-      scheduleAutoAnalyze("startup");
-    }
-  }
 }
 
 export function deactivate() {}
+
+function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
+  // aqui você pode adicionar guards futuros (ex: tamanho máximo, etc.)
+  return analyzeDocument(sourceText, fileName);
+}
