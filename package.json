@@ -1,0 +1,71 @@
+{
+  "name": "lint-advpl-tlpp-by-filhoirineu",
+  "displayName": "LINT ADVPL/TLPP by @filhoirineu",
+  "description": "Lint interno ADVPL/TLPP",
+  "publisher": "interno",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.108.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:lintAdvplTlpp.sidebar",
+    "onCommand:lintAdvplTlpp.analyzeCurrentFile",
+    "onCommand:lintAdvplTlpp.exportReportTxt",
+    "onCommand:lintAdvplTlpp.ping"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "lintAdvplTlpp.analyzeCurrentFile",
+        "title": "LINT ADVPL/TLPP: Analisar arquivo atual"
+      },
+      {
+        "command": "lintAdvplTlpp.exportReportTxt",
+        "title": "LINT ADVPL/TLPP: Exportar relatório TXT (arquivo atual)"
+      },
+      {
+        "command": "lintAdvplTlpp.ping",
+        "title": "LINT ADVPL/TLPP: Ping (teste)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "lintAdvplTlppContainer",
+          "title": "LINT ADVPL/TLPP",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "lintAdvplTlppContainer": [
+        {
+          "id": "lintAdvplTlpp.sidebar",
+          "name": "Análise (arquivo atual)",
+          "type": "webview"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.108.1",
+    "@types/node": "22.x",
+    "@types/mocha": "^10.0.10",
+    "typescript": "^5.9.3",
+    "eslint": "^9.39.2",
+    "typescript-eslint": "^8.52.0",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
