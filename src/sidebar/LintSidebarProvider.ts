@@ -5,7 +5,10 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "lintAdvplTlpp.sidebarView";
 
   private _view?: vscode.WebviewView;
+
   private _lastResult?: AnalysisResult;
+  private _lastUri?: string; // uri.toString()
+  private _lastDocVersion?: number; // document.version
 
   constructor(private readonly _context: vscode.ExtensionContext) {}
 
@@ -45,17 +48,34 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
 
     // Se já havia um resultado anterior, renderiza ao abrir a view
     if (this._lastResult) {
-      this.postResult(this._lastResult);
+      this.postResult(this._lastResult, this._lastUri, this._lastDocVersion);
     }
   }
 
-  public setResult(result: AnalysisResult) {
+  /** ✅ use isso sempre: atualiza resultado + metadados (uri/version) */
+  public setResult(
+    result: AnalysisResult,
+    uri?: vscode.Uri,
+    docVersion?: number
+  ) {
     this._lastResult = result;
-    this.postResult(result);
+    this._lastUri = uri ? uri.toString() : this._lastUri;
+    this._lastDocVersion =
+      typeof docVersion === "number" ? docVersion : this._lastDocVersion;
+
+    this.postResult(this._lastResult, this._lastUri, this._lastDocVersion);
   }
 
   public getLastResult(): AnalysisResult | undefined {
     return this._lastResult;
+  }
+
+  public getLastUri(): string | undefined {
+    return this._lastUri;
+  }
+
+  public getLastDocVersion(): number | undefined {
+    return this._lastDocVersion;
   }
 
   public buildTxtReport(result: AnalysisResult): string {
@@ -132,11 +152,23 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
     return lines.join("\r\n");
   }
 
-  private postResult(result: AnalysisResult) {
+  private postResult(
+    result: AnalysisResult,
+    uri?: string,
+    docVersion?: number
+  ) {
     if (!this._view) {
       return;
     }
-    this._view.webview.postMessage({ type: "result", result });
+
+    this._view.webview.postMessage({
+      type: "result",
+      result,
+      meta: {
+        uri: uri ?? "",
+        docVersion: typeof docVersion === "number" ? docVersion : null,
+      },
+    });
   }
 
   private getHtml(webview: vscode.Webview): string {
@@ -219,7 +251,7 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
     }
 
     .issue-message {
-      white-space: pre-wrap; /* ✅ \\n quebra linha */
+      white-space: pre-wrap;
       font-size: 12px;
       line-height: 1.35;
     }
@@ -256,6 +288,7 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
   <div class="card">
     <div class="muted"><b>Arquivo:</b> <span id="filePath">-</span></div>
     <div class="muted"><b>Resumo:</b> <span id="summary">-</span></div>
+    <div class="muted"><b>Documento:</b> <span id="docMeta">-</span></div>
   </div>
 
   <div class="section-title">Sugestões</div>
@@ -286,6 +319,7 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
       if (!msg || msg.type !== "result") return;
 
       const result = msg.result;
+      const meta = msg.meta || {};
 
       document.getElementById("filePath").textContent = result.fileName || "-";
       document.getElementById("summary").textContent =
@@ -293,6 +327,10 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
         " | locals=" + (result.summary?.localsCount ?? 0) +
         " | defaults=" + (result.summary?.defaultsCount ?? 0) +
         " | issues=" + (result.summary?.issuesCount ?? 0);
+
+      const uri = meta.uri || "-";
+      const ver = (meta.docVersion === null || meta.docVersion === undefined) ? "-" : meta.docVersion;
+      document.getElementById("docMeta").textContent = uri + " | v=" + ver;
 
       renderSuggestions(result);
       renderIssues(result.issues || []);
@@ -308,7 +346,6 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
       for (const b of blocks) {
         const locals = b.locals || [];
         const defaults = b.defaults || [];
-
         if (locals.length === 0 && defaults.length === 0) continue;
 
         renderedAny = true;
