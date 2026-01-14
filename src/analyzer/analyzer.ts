@@ -894,7 +894,9 @@ function collectNoInitDeclIssues(
     const varName = m[2];
 
     // Case: se por algum motivo vier com "Local a,b" (vírgula), ignora (multi-decl rule cobre)
-    if (varName.includes(",")) continue;
+    if (varName.includes(",")) {
+      continue;
+    }
 
     const absIndex = absBaseIndex + m.index;
     const pos = indexToLineCol(lineIndex, absIndex);
@@ -918,8 +920,8 @@ function collectNoInitDeclIssues(
 }
 
 /* =========================
-   Utilidades de nome / tipo
-   ========================= */
+Utilidades de nome / tipo
+========================= */
 
 function normalizeVarKey(name: string): string {
   return name.replace(/^_+/, "").toLowerCase();
