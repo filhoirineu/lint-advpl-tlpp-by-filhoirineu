@@ -69,7 +69,7 @@ export function analyzeDocument(
   fileName: string
 ): AnalysisResult {
   const masked = maskCommentsPreserveLayout(sourceText);
-  const lineIndex = buildLineIndex(sourceText);
+  const lineIndex = buildLineIndex(masked);
 
   const declaredPrivOrStatic = collectGlobalPrivateAndStatic(masked);
 
@@ -191,9 +191,34 @@ export function analyzeDocument(
 
   const blocks = extractBlocksByNextStart(masked);
 
+  // ✅ texto para procurar chamadas sem contar a própria linha de declaração da função
+  const maskedNoFuncDeclLines = maskFunctionDeclLines(masked);
+
   const blockResults: BlockResult[] = [];
 
   for (const b of blocks) {
+    // ✅ NOVO: Static Function declarada e não utilizada
+    if (b.blockType === "Static") {
+      const calls = countFunctionCalls(maskedNoFuncDeclLines, b.blockName);
+
+      if (calls === 0) {
+        const pos = indexToLineCol(lineIndex, b.startIndex);
+
+        issues.push({
+          ruleId: "unused/static-function",
+          severity: "warning",
+          line: pos.line,
+          column: pos.column,
+          message: fmtWarningLines([
+            "Escopo: Static Function",
+            `Função: ${b.blockType} ${b.blockName}`,
+            `Problema: função Static "${b.blockName}" declarada e não utilizada no fonte`,
+            "Sugestão: remover/excluir a função (ou validar se é chamada indiretamente).",
+          ]),
+        });
+      }
+    }
+
     // ✅ Detectar declarações múltiplas dentro do bloco
     issues.push(
       ...collectMultiDeclIssues(
@@ -211,6 +236,15 @@ export function analyzeDocument(
         b.body,
         lineIndex,
         "Bloco",
+        `${b.blockType} ${b.blockName}`,
+        b.bodyStartIndex
+      )
+    );
+
+    issues.push(
+      ...collectTcQueryWarnings(
+        b.body,
+        lineIndex,
         `${b.blockType} ${b.blockName}`,
         b.bodyStartIndex
       )
@@ -400,6 +434,64 @@ export function analyzeDocument(
       }
       if (declaredPrivOrStatic.has(d.varKey)) {
         continue;
+      }
+
+      for (const d of declsToCheckUnused) {
+        if (isUnusedIgnoredVar(d.varName)) {
+          continue;
+        }
+        if (startsWithUpperAfterUnderscore(d.varName)) {
+          continue;
+        }
+        if (declaredPrivOrStatic.has(d.varKey)) {
+          continue;
+        }
+
+        // ✅ NOVO: Local "write-only" (declarada/atribuída e nunca lida)
+        if (d.kind === "Local") {
+          const writes = countVariableWrites(bodyForUsage, d.varName);
+          const reads = countVariableReads(bodyForUsage, d.varName);
+
+          // se tem escrita (declaração inicial já foi mascarada; escrita aqui é :=, += etc)
+          // e não tem nenhuma leitura -> problema
+          if (writes > 0 && reads === 0) {
+            const pos = indexToLineCol(lineIndex, d.absIndex);
+
+            issues.push({
+              ruleId: "unused/local-write-only",
+              severity: "warning",
+              line: pos.line,
+              column: pos.column,
+              message: fmtWarningLines([
+                "Escopo: Local",
+                `Função: ${b.blockType} ${b.blockName}`,
+                `Variável: "${d.varName}"`,
+                "Problema: variável Local recebe valores (write), mas nunca é utilizada em leitura (read) dentro da função.",
+                "Sugestão: remover a variável ou usar o valor dela em algum ponto (provável código morto/mal utilizado).",
+              ]),
+            });
+
+            continue; // evita cair em outras regras e duplicar aviso
+          }
+        }
+
+        // regra antiga (unused geral) continua valendo para os outros casos:
+        const count = countIdentifierUsage(bodyForUsage, d.varName);
+        if (count === 0) {
+          const pos = indexToLineCol(lineIndex, d.absIndex);
+          issues.push({
+            ruleId: "unused/declaration",
+            severity: "warning",
+            line: pos.line,
+            column: pos.column,
+            message: fmtWarningLines([
+              `Escopo: ${d.kind}`,
+              `Função: ${b.blockType} ${b.blockName}`,
+              `Variável: "${d.varName}" declarado mas não utilizado no bloco`,
+              "Sugestão: remover a declaração",
+            ]),
+          });
+        }
       }
 
       const count = countIdentifierUsage(bodyForUsage, d.varName);
@@ -919,6 +1011,54 @@ function collectNoInitDeclIssues(
   return issues;
 }
 
+function collectTcQueryWarnings(
+  text: string,
+  lineIndex: LineIndex,
+  functionLabel: string,
+  absBaseIndex: number
+): Issue[] {
+  const issues: Issue[] = [];
+
+  // pega linhas do tipo:
+  //   TCQUERY cQuery1 NEW ALIAS "query8"
+  // (multiline + case-insensitive)
+  const re = /^[ \t]*TCQUERY\b[^\r\n]*/gim;
+
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const fullLine = m[0];
+
+    // tenta extrair variável e ALIAS para enriquecer o warning
+    const varMatch = fullLine.match(/^\s*TCQUERY\s+([A-Za-z_]\w*)/i);
+    const varName = varMatch?.[1];
+
+    const aliasMatch = fullLine.match(/\bALIAS\s+"([^"]+)"/i);
+    const aliasName = aliasMatch?.[1];
+
+    const absIndex = absBaseIndex + m.index;
+    const pos = indexToLineCol(lineIndex, absIndex);
+
+    issues.push({
+      ruleId: "sql/tcquery",
+      severity: "warning",
+      line: pos.line,
+      column: pos.column,
+      message: fmtWarningLines([
+        "Escopo: SQL (TCQUERY)",
+        `Função: ${functionLabel}`,
+        `Trecho original: ${fullLine.trim()}`,
+        "Sugestão de substituição:",
+        "",
+        `MpSysOpenQuery( ${varName ?? "<cQueryPar>"} , ${
+          aliasName ? `"${aliasName}"` : "<cAliasPar>"
+        } )`,
+      ]),
+    });
+  }
+
+  return issues;
+}
+
 /* =========================
 Utilidades de nome / tipo
 ========================= */
@@ -954,16 +1094,28 @@ function validateNameRuleStrict(name: string): {
   ok: boolean;
   reason?: string;
 } {
-  const first = getFirstSignificantChar(name);
-  if (!first) {
-    return { ok: false, reason: "nome vazio" };
+  // remove underscores iniciais
+  const cleaned = name.replace(/^_+/, "");
+
+  // ✅ NOVO: variável deve ter pelo menos 2 caracteres (prefixo + nome)
+  // Ex inválido: I, J, X
+  // Ex válido: nX, cA, lT
+  if (cleaned.length < 2) {
+    return {
+      ok: false,
+      reason:
+        "Nome inválido. Variável deve possuir prefixo de tipo + identificador (ex: nX, cA, lT).",
+    };
   }
 
+  const first = cleaned[0];
+
+  // prefixo deve ser letra minúscula
   if (first !== first.toLowerCase()) {
     return {
       ok: false,
       reason:
-        "O primeiro caractere válido (após '_') deve ser uma letra minúscula (ex: lTESTE, nDiasEntrega, cNOME).",
+        "O prefixo da variável deve ser uma letra minúscula indicando o tipo (ex: n, c, l, a, d, o).",
     };
   }
 
@@ -1102,6 +1254,41 @@ function collectSetPrvt(text: string): {
   return { vars, calls };
 }
 
+function countFunctionCalls(text: string, fnName: string): number {
+  const name = escapeRegExp(fnName);
+
+  // Foo( ... )  ou  ::Foo( ... )
+  const re = new RegExp(`(?:\\b|::)${name}\\s*\\(`, "g");
+
+  let m: RegExpExecArray | null = null;
+  let count = 0;
+
+  while ((m = re.exec(text))) {
+    count++;
+  }
+
+  return count;
+}
+
+function maskFunctionDeclLines(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const out: string[] = [];
+
+  // Mesma regex base do extractBlocksByNextStart
+  const reDecl =
+    /^\s*\b(User\s*Function|UserFunction|Static\s*Function|StaticFunction|Function|Method|WsMethod)\b\s+[A-Za-z_][A-Za-z0-9_]*\s*(\([^\)]*\))?/i;
+
+  for (const ln of lines) {
+    if (reDecl.test(ln)) {
+      out.push(ln.replace(/[^\r\n]/g, " "));
+    } else {
+      out.push(ln);
+    }
+  }
+
+  return out.join("\n");
+}
+
 function maskDeclarationLines(text: string, mode: "global" | "block"): string {
   const lines = text.split(/\r?\n/);
   const out: string[] = [];
@@ -1153,6 +1340,66 @@ function countIdentifierUsage(text: string, name: string): number {
   }
 
   return count;
+}
+
+function countVariableWrites(body: string, varName: string): number {
+  const key = normalizeVarKey(varName);
+  if (!key) {
+    return 0;
+  }
+
+  // captura "var := ..." etc (var no LHS)
+  const re = new RegExp(
+    `\\b${escapeRegExp(key)}\\b\\s*(\\+=|-=|\\*=|\\/=|:=)`,
+    "gi"
+  );
+
+  let m: RegExpExecArray | null = null;
+  let writes = 0;
+
+  while ((m = re.exec(body))) {
+    const idx = m.index;
+    const prev2 = idx >= 2 ? body.slice(idx - 2, idx) : "";
+    if (prev2 === "->") {
+      continue;
+    } // ignora ALIAS->CAMPO
+    writes++;
+  }
+
+  return writes;
+}
+
+function countVariableReads(body: string, varName: string): number {
+  const key = normalizeVarKey(varName);
+  if (!key) {
+    return 0;
+  }
+
+  // encontra todas ocorrências do identificador
+  const re = new RegExp(`\\b${escapeRegExp(key)}\\b`, "gi");
+
+  let m: RegExpExecArray | null = null;
+  let reads = 0;
+
+  while ((m = re.exec(body))) {
+    const idx = m.index;
+
+    // ignora acesso a campo: ALIAS->CAMPO
+    const prev2 = idx >= 2 ? body.slice(idx - 2, idx) : "";
+    if (prev2 === "->") {
+      continue;
+    }
+
+    // ignora quando é LHS de atribuição (escrita)
+    const after = body.slice(idx + m[0].length);
+    if (/^\s*(\+=|-=|\*=|\/=|:=)/.test(after)) {
+      continue;
+    }
+
+    reads++;
+  }
+
+  return reads;
 }
 
 function hasTcQueryUsage(text: string): boolean {

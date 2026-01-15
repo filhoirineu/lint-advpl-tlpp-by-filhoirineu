@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import { AnalysisResult } from "../analyzer/types";
 
 export class LintSidebarProvider implements vscode.WebviewViewProvider {
-  public static readonly viewType = "lintAdvplTlpp.sidebarView";
+  // ✅ TEM que ser igual ao package.json -> contributes.views[].id
+  public static readonly viewType = "lintAdvplTlpp.sidebar";
 
   private _view?: vscode.WebviewView;
 
@@ -19,19 +20,26 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
   ) {
     this._view = webviewView;
 
+    // ✅ se a view for destruída, limpe a referência (evita travar o fluxo)
+    webviewView.onDidDispose(() => {
+      if (this._view === webviewView) {
+        this._view = undefined;
+      }
+    });
+
     webviewView.webview.options = {
       enableScripts: true,
       localResourceRoots: [this._context.extensionUri],
     };
 
-    webviewView.webview.onDidReceiveMessage(async (msg) => {
-      if (!msg || !msg.type) {
+    webviewView.webview.onDidReceiveMessage((msg) => {
+      if (!msg?.type) {
         return;
       }
 
       switch (msg.type) {
         case "ping":
-          vscode.window.showInformationMessage("LINT: Ping OK");
+          vscode.commands.executeCommand("lintAdvplTlpp.ping");
           return;
 
         case "refresh":
@@ -39,29 +47,32 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
           return;
 
         case "exportTxt":
-          vscode.commands.executeCommand("lintAdvplTlpp.exportTxt");
+          vscode.commands.executeCommand("lintAdvplTlpp.exportReportTxt");
           return;
       }
     });
 
     webviewView.webview.html = this.getHtml(webviewView.webview);
 
-    // Se já havia um resultado anterior, renderiza ao abrir a view
+    // ✅ Se já tinha resultado antes, re-renderiza ao abrir
     if (this._lastResult) {
       this.postResult(this._lastResult, this._lastUri, this._lastDocVersion);
     }
   }
 
-  /** ✅ use isso sempre: atualiza resultado + metadados (uri/version) */
   public setResult(
     result: AnalysisResult,
     uri?: vscode.Uri,
     docVersion?: number
   ) {
     this._lastResult = result;
-    this._lastUri = uri ? uri.toString() : this._lastUri;
-    this._lastDocVersion =
-      typeof docVersion === "number" ? docVersion : this._lastDocVersion;
+
+    if (uri) {
+      this._lastUri = uri.toString();
+    }
+    if (typeof docVersion === "number") {
+      this._lastDocVersion = docVersion;
+    }
 
     this.postResult(this._lastResult, this._lastUri, this._lastDocVersion);
   }
@@ -85,6 +96,7 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
     lines.push("============================================================");
     lines.push(`Arquivo: ${result.fileName}`);
     lines.push("");
+
     lines.push(
       `Resumo: blocos=${result.summary?.blocksWithIssues ?? 0} | locals=${
         result.summary?.localsCount ?? 0
@@ -94,7 +106,6 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
     );
     lines.push("");
 
-    // Sugestões por bloco
     lines.push("SUGESTÕES");
     lines.push("------------------------------------------------------------");
 
@@ -103,7 +114,6 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
       lines.push("(nenhuma)");
     } else {
       let any = false;
-
       for (const b of blocks) {
         const locals = b.locals ?? [];
         const defaults = b.defaults ?? [];
@@ -113,25 +123,20 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
 
         any = true;
         lines.push(`[${b.blockType} ${b.blockName}]`);
-
         for (const s of locals) {
           lines.push(`  ${s.text}`);
         }
         for (const s of defaults) {
           lines.push(`  ${s.text}`);
         }
-
         lines.push("");
       }
-
       if (!any) {
         lines.push("(nenhuma)");
       }
     }
 
     lines.push("");
-
-    // Issues
     lines.push("ISSUES");
     lines.push("------------------------------------------------------------");
 
@@ -184,97 +189,33 @@ export class LintSidebarProvider implements vscode.WebviewViewProvider {
   <title>LINT ADVPL/TLPP</title>
 
   <style>
-    body {
-      font-family: var(--vscode-font-family);
-      font-size: var(--vscode-font-size);
-      color: var(--vscode-foreground);
-      background: var(--vscode-sideBar-background);
-      padding: 10px;
-    }
+    body { font-family: var(--vscode-font-family); font-size: var(--vscode-font-size);
+      color: var(--vscode-foreground); background: var(--vscode-sideBar-background); padding: 10px; }
 
-    .toolbar {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 10px;
-      flex-wrap: wrap;
-    }
+    .toolbar { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
 
-    button {
-      border: 1px solid var(--vscode-button-border, transparent);
-      background: var(--vscode-button-background);
-      color: var(--vscode-button-foreground);
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 12px;
-    }
+    button { border: 1px solid var(--vscode-button-border, transparent);
+      background: var(--vscode-button-background); color: var(--vscode-button-foreground);
+      padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+    button.secondary { background: var(--vscode-button-secondaryBackground);
+      color: var(--vscode-button-secondaryForeground); }
 
-    button.secondary {
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-    }
+    .card { background: var(--vscode-editorWidget-background); border: 1px solid var(--vscode-editorWidget-border);
+      border-radius: 8px; padding: 10px; margin-bottom: 10px; }
 
-    .card {
-      background: var(--vscode-editorWidget-background);
-      border: 1px solid var(--vscode-editorWidget-border);
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
+    .muted { opacity: 0.85; font-size: 12px; line-height: 1.4; }
 
-    .muted {
-      opacity: 0.8;
-      font-size: 12px;
-      line-height: 1.4;
-    }
+    .section-title { font-weight: 700; margin: 10px 0 8px; font-size: 13px; }
 
-    .section-title {
-      font-weight: 700;
-      margin: 10px 0 8px;
-      font-size: 13px;
-    }
+    .issue { border: 1px solid var(--vscode-editorWidget-border); border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+    .issue-header { font-size: 12px; opacity: 0.9; margin-bottom: 6px; display: flex; justify-content: space-between; gap: 8px; }
+    .issue-message { white-space: pre-wrap; font-size: 12px; line-height: 1.35; }
 
-    .issue {
-      border: 1px solid var(--vscode-editorWidget-border);
-      border-radius: 8px;
-      padding: 8px;
-      margin-bottom: 8px;
-    }
+    .badge { font-size: 11px; padding: 2px 6px; border-radius: 999px;
+      border: 1px solid var(--vscode-editorWidget-border); opacity: 0.9; white-space: nowrap; }
 
-    .issue-header {
-      font-size: 12px;
-      opacity: 0.9;
-      margin-bottom: 6px;
-      display: flex;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .issue-message {
-      white-space: pre-wrap;
-      font-size: 12px;
-      line-height: 1.35;
-    }
-
-    .badge {
-      font-size: 11px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      border: 1px solid var(--vscode-editorWidget-border);
-      opacity: 0.9;
-      white-space: nowrap;
-    }
-
-    .list {
-      margin: 0;
-      padding-left: 16px;
-    }
-
-    .list li {
-      margin: 4px 0;
-      font-size: 12px;
-      line-height: 1.35;
-    }
+    .list { margin: 0; padding-left: 16px; }
+    .list li { margin: 4px 0; font-size: 12px; line-height: 1.35; }
   </style>
 </head>
 

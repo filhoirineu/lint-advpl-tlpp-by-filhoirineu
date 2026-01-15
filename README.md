@@ -1,71 +1,101 @@
-# lint-advpl-tlpp-by-filhoirineu README
+# LINT ADVPL/TLPP by @filhoirineu
 
-This is the README for your extension "lint-advpl-tlpp-by-filhoirineu". After writing up a brief description, we recommend including the following sections.
+Extensao de lint local para fontes ADVPL/TLPP. O objetivo e identificar problemas comuns de escopo, nomenclatura e boas praticas sem depender de ambientes TOTVS.
 
-## Features
+## Visao geral
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
+- Analisa o arquivo ativo ao abrir, trocar de aba, editar ou salvar.
+- Sugere declaracao de `Local` e `Default` para variaveis usadas sem cabecalho.
+- Reporta issues de nomenclatura, tipo esperado, declaracoes duplicadas ou sem inicializacao, funcoes Static nao utilizadas e riscos com SQL dinamico.
+- Exibe resultados em uma webview lateral com resumo, sugestoes e lista de problemas.
+- Permite exportar o relatorio em TXT para compartilhamento.
 
-For example if there is an image subfolder under your extension project workspace:
+## Como usar no VS Code
 
-\!\[feature X\]\(images/feature-x.png\)
+1. Abra um arquivo ADVPL/TLPP (.prw, .prx, .tlpp etc.).
+2. A extensao roda automaticamente; o painel lateral "LINT ADVPL/TLPP" mostra o resultado mais recente.
+3. Ajuste o codigo seguindo as sugestoes de Locals/Defaults e corrija issues listadas.
 
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
+### Comandos disponiveis
 
-## Requirements
+| Comando                                                   | Acao                                                               |
+| --------------------------------------------------------- | ------------------------------------------------------------------ |
+| `LINT ADVPL/TLPP: Analisar arquivo atual`                 | Forca uma nova analise do editor ativo e exibe toast de conclusao. |
+| `LINT ADVPL/TLPP: Exportar relatorio TXT (arquivo atual)` | Gera um TXT com sugestoes e issues detectadas no ultimo resultado. |
+| `LINT ADVPL/TLPP: Ping (teste)`                           | Mostra uma notificacao rapida para validar o ciclo de comandos.    |
 
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
+### Painel lateral
 
-## Extension Settings
+- Botao **Atualizar** aciona o comando de analise manual.
+- Botao **Exportar TXT** chama a rotina de exportacao.
+- Botao **Ping View** executa o comando de ping.
+- Resumo traz contagem de blocos com problemas, Locals, Defaults e issues.
 
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
+## Principais verificacoes
 
-For example:
+- Nomenclatura padrao hungaro (tipos incoerentes geram erro).
+- Declaracoes duplicadas (`Local`, `Private`, `Static`) na mesma linha.
+- Declaracoes sem inicializacao quando a regra exige valor inicial.
+- Variaveis globais (`Static`, `Private`) nao utilizadas.
+- Uso de `SetPrvt` com alerta para declaracao explicita.
+- Funcoes `Static` declaradas e nunca chamadas.
+- Construcoes de SQL dinamico que nao usam `TCQUERY` e `MpSysOpenQuery`.
 
-This extension contributes the following settings:
+## Estrutura essencial
 
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
+- `src/extension.ts`: ponto de entrada, registra comandos, eventos e dispara analise.
+- `src/sidebar/LintSidebarProvider.ts`: renderiza webview com resultados e integra os botoes.
+- `src/analyzer/analyzer.ts`: implementa o motor de analise e regras de lint.
+- `src/analyzer/report.ts`: gera HTML e TXT a partir do resultado da analise.
 
-## Known Issues
+## Requisitos
 
-Calling out known issues can help limit users opening duplicate issues against your extension.
+- Visual Studio Code 1.108 ou superior.
+- Node.js 22.x para desenvolvimento e build.
+- Dependencias de desenvolvimento listadas no `package.json`.
 
-## Release Notes
+## Desenvolvimento
 
-Users appreciate release notes as you update your extension.
+### Instalar dependencias
 
-### 1.0.0
+```bash
+npm install
+```
 
-Initial release of ...
+### Compilar uma vez
 
-### 1.0.1
+```bash
+npm run compile
+```
 
-Fixed issue #.
+### Compilar em modo watch
 
-### 1.1.0
+```bash
+npm run watch
+```
 
-Added features X, Y, and Z.
+### Analisar codigo fonte com ESLint
 
----
+```bash
+npm run lint
+```
 
-## Following extension guidelines
+### Executar testes de extensao
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+```bash
+npm test
+```
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+### Debug da extensao
 
-## Working with Markdown
+1. Abra esta pasta no VS Code.
+2. Pressione F5 (ou "Run and Debug") para iniciar uma nova janela de extensao.
+3. Abra um arquivo ADVPL/TLPP na janela de teste e confira a aba lateral da lint.
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+## Roadmap
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+- Adicionar screenshots/gravacoes da webview lateral.
+- Cobrir cenarios adicionais de regras (por exemplo, validacao de includes).
+- Expandir testes automatizados para cada regra principal.
 
-## For more information
-
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
-
-**Enjoy!**
+Contribuicoes internas sao bem-vindas via PR ou issue no repositorio privado.
