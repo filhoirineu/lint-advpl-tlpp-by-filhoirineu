@@ -9,6 +9,7 @@
     "url": "https://github.com/filhoirineu/lint-advpl-tlpp-by-filhoirineu"
   },
   "license": "GPL-3.0",
+  "icon": "media/market-icon.png",
   "engines": {
     "vscode": "^1.79.0"
   },
