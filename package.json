@@ -2,7 +2,7 @@
   "name": "lint-advpl-sidebar",
   "displayName": "Lint AdvPL Sidebar",
   "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -94,6 +94,7 @@
     "watch": "tsc -w -p ./"
   },
   "devDependencies": {
+    "@types/mocha": "^10.0.10",
     "@types/node": "^18.0.0",
     "@types/vscode": "^1.79.0",
     "sharp": "^0.34.5",
