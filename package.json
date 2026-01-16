@@ -1,11 +1,16 @@
 {
   "name": "lint-advpl-sidebar",
   "displayName": "Lint AdvPL Sidebar",
-  "description": "Minimal VS Code extension showing lint results in a sidebar (no toasts/problems).",
-  "version": "0.0.1",
-  "publisher": "local",
+  "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
+  "version": "0.0.2",
+  "publisher": "filhoirineu",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/filhoirineu/lint-advpl-tlpp-by-filhoirineu"
+  },
+  "license": "GPL-3.0",
   "engines": {
-    "vscode": "^1.60.0"
+    "vscode": "^1.79.0"
   },
   "categories": [
     "Other"
@@ -13,7 +18,8 @@
   "activationEvents": [
     "onView:lint-advpl.sidebar",
     "onCommand:lint-advpl.analyze",
-    "onCommand:lint-advpl.exportTxt"
+    "onCommand:lint-advpl.exportTxt",
+    "onLanguage:advpl"
   ],
   "main": "out/extension.js",
   "contributes": {
@@ -64,7 +70,22 @@
           "description": "When true, show underlines/squiggles in the editor for issues; when false, publish issues to Problems without underlining code."
         }
       }
-    }
+    },
+    "languages": [
+      {
+        "id": "advpl",
+        "aliases": [
+          "ADVPL",
+          "AdvPL"
+        ],
+        "extensions": [
+          ".prw",
+          ".prx",
+          ".tlpp"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

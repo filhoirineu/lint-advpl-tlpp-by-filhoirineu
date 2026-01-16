@@ -205,6 +205,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     const doc = editor.document;
 
+    // only analyze ADVPL/TLPP files (by extension or language id)
+    const fname = doc.fileName.toLowerCase();
+    const allowedExt = [".prw", ".prx", ".tlpp"];
+    if (
+      !allowedExt.some((e) => fname.endsWith(e)) &&
+      doc.languageId !== "advpl"
+    ) {
+      return;
+    }
+
     // ✅ opcional: filtre extensões/linguagens se quiser
     // if (!doc.fileName.toLowerCase().endsWith(".prw")) return;
 

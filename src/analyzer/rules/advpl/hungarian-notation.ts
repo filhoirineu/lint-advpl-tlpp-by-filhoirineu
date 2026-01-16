@@ -115,7 +115,8 @@ export function run(sourceText: string, fileName: string): Issue[] {
           const prefix = id.replace(/^_+/, "")[0]?.toLowerCase() ?? "";
           const expectMap: Record<string, RegExp> = {
             a: /^{/,
-            b: /^\s*Nil\b/i,
+            // prefix 'b' = bloco de código: aceita Nil ou um code-block iniciado com '{' seguido de '|' (ex: {|| ... })
+            b: /^\s*(?:Nil\b|\{\s*\|)/i,
             c: /^\s*("|')/,
             d: /CTOD\s*\(/i,
             j: /^\s*Nil\b/i,

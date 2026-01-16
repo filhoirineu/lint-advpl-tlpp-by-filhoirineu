@@ -58,11 +58,13 @@ export function run(sourceText: string, fileName: string): Issue[] {
         const has =
           usageRe.test(blockForSearch) || stringUsageRe.test(blockForSearch);
         if (!has) {
-          // locate line/column
-          const abs = cur.index + lm.index;
+          // locate line/column (use position of identifier within the declaration)
+          const idPosInDecl = (lm[0] || "").indexOf(id);
+          const abs =
+            cur.index + lm.index + (idPosInDecl >= 0 ? idPosInDecl : 0);
           const prefix = sourceText.slice(0, abs);
           const line = prefix.split(/\r?\n/).length;
-          const column = prefix.split(/\r?\n/).pop()?.length ?? 0 + 1;
+          const column = (prefix.split(/\r?\n/).pop()?.length ?? 0) + 1;
 
           issues.push({
             ruleId: "advpl/no-unused-local",
