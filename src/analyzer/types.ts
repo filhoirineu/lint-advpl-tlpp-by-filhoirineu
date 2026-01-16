@@ -22,6 +22,7 @@ export interface Issue {
   severity: IssueSeverity;
   line: number; // 1-based
   column: number; // 1-based
+  functionName?: string;
 }
 
 export interface BlockResult {

@@ -7,5 +7,16 @@
 		"out": true // set this to false to include "out" folder in search results
 	},
 	// Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-	"typescript.tsc.autoDetect": "off"
+	"typescript.tsc.autoDetect": "off",
+	"totvsLanguageServer.welcomePage": false,
+	"chat.tools.terminal.autoApprove": {
+		"/^cd c:\\\\Users\\\\IFILHOSTUDIES\\\\@estudos\\\\extensao_vscode\\\\lint-advpl-tlpp\\\\lint-advpl-tlpp-by-filhoirineu; node -e \"function maskDeclarationLines\\(text, mode\\)\\{const lines=text\\.split\\(/\\\\r\\?\\\\n/\\);const out=\\[\\];for\\(const ln of lines\\)\\{const t=ln\\.trim\\(\\);if\\(mode==='block'\\)\\{if\\(/\\^\\(Local\\|Static\\|Private\\|Default\\)\\\\b/i\\.test\\(t\\) && !/\\^Static\\\\s\\+Function\\\\b/i\\.test\\(t\\)\\)\\{out\\.push\\(ln\\.replace\\(/\\[\\^\\\\r\\\\n\\]/g,' '\\)\\);continue;\\}\\}out\\.push\\(ln\\);\\}return out\\.join\\('\\\\n'\\);\\}function normalizeVarKey\\(name\\)\\{return name\\.replace\\(/\\^_\\+/,''\\)\\.toLowerCase\\(\\);\\}function escapeRegExp\\(str\\)\\{return str\\.replace\\(/\\[\\|\\\\\\\\\\{\\}\\(\\)\\[\\\\\\]\\^\\$\\+\\*\\?\\.\\]/g,'\\\\\\\\\\$&'\\);\\}function countIdentifierUsage\\(text,name\\)\\{const key=normalizeVarKey\\(name\\);if\\(!key\\)return 0;const re=new RegExp\\('\\\\\\\\\\\\b'\\+escapeRegExp\\(key\\)\\+'\\\\\\\\\\\\b','gi'\\);let m=null,count=0;while\\(\\(m=re\\.exec\\(text\\)\\)\\)\\{const idx=m\\.index;const prev2=idx>=2\\?text\\.slice\\(idx-2,idx\\):'';if\\(prev2==='->'\\)\\{continue;\\}count\\+\\+;\\}return count;\\}const body = `\nLocal nLin := 80\nIf nLin > 60\n  Cabec\\(Titulo,Cabec1,Cabec2,NomeProg,Tamanho,nTipo\\)\n  nLin := 8\nEndif\n@ nLin,000 PSay query2->ZZ8_CLIE\\+\" \"\\+query2->ZZ8_LOJA\nnLin\\+\\+\n`;\nconst masked=maskDeclarationLines\\(body,'block'\\);\nconsole\\.log\\('masked usage',countIdentifierUsage\\(masked,'nLin'\\)\\);\n\"$/": {
+			"approve": true,
+			"matchCommandLine": true
+		},
+		"/^node tools/runRuleTest\\.js$/": {
+			"approve": true,
+			"matchCommandLine": true
+		}
+	}
 }

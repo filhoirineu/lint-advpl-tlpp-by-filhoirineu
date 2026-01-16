@@ -1,89 +1,137 @@
 import * as vscode from "vscode";
-import { analyzeDocument } from "./analyzer/analyzer";
+// try both possible compiled analyzer locations (index.js or analyzer.js)
+let analyzer: any;
+try {
+  analyzer = require("../out/analyzer/index");
+} catch (e) {
+  try {
+    analyzer = require("../out/analyzer/analyzer");
+  } catch {
+    analyzer = {
+      analyzeDocument: () => ({
+        fileName: "",
+        blocks: [],
+        issues: [],
+        summary: {
+          blocksWithIssues: 0,
+          localsCount: 0,
+          defaultsCount: 0,
+          issuesCount: 0,
+        },
+      }),
+    };
+  }
+}
 import { AnalysisResult } from "./analyzer/types";
-import { LintSidebarProvider } from "./sidebar/LintSidebarProvider";
+import LintTreeProvider from "./sidebar/LintTreeProvider";
 
-let provider: LintSidebarProvider | undefined;
+let provider: LintTreeProvider | undefined;
 
 // ✅ debounce
 let analyzeTimer: NodeJS.Timeout | undefined;
 
 export function activate(context: vscode.ExtensionContext) {
-  provider = new LintSidebarProvider(context);
+  console.log("lint-advpl: activating extension");
+  provider = new LintTreeProvider(context);
 
   context.subscriptions.push(
-    vscode.window.registerWebviewViewProvider(
-      LintSidebarProvider.viewType,
-      provider,
-      { webviewOptions: { retainContextWhenHidden: true } }
-    )
+    vscode.window.registerTreeDataProvider(LintTreeProvider.viewId, provider)
+  );
+  console.log(
+    "lint-advpl: registered TreeDataProvider for",
+    LintTreeProvider.viewId
   );
 
-  // ✅ comando do package.json: lintAdvplTlpp.analyzeCurrentFile
+  // register analyze command
   context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "lintAdvplTlpp.analyzeCurrentFile",
-      async () => {
-        try {
-          runAnalyzeNow(true); // com toast
-        } catch (e: any) {
-          vscode.window.showErrorMessage(
-            "LINT: Falha ao analisar arquivo: " + (e?.message ?? String(e))
-          );
-        }
+    vscode.commands.registerCommand("lint-advpl.analyze", async () => {
+      try {
+        runAnalyzeNow(true); // show information message
+      } catch (e: any) {
+        vscode.window.showErrorMessage(
+          "LINT: Falha ao analisar arquivo: " + (e?.message ?? String(e))
+        );
       }
-    )
-  );
-
-  // ✅ comando do package.json: lintAdvplTlpp.exportReportTxt
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "lintAdvplTlpp.exportReportTxt",
-      async () => {
-        try {
-          const last = provider?.getLastResult();
-          if (!last) {
-            vscode.window.showWarningMessage(
-              "LINT: Nenhum resultado para exportar."
-            );
-            return;
-          }
-
-          const uri = await vscode.window.showSaveDialog({
-            saveLabel: "Exportar TXT",
-            filters: { Text: ["txt"] },
-            defaultUri: vscode.Uri.file(
-              (last.fileName || "lint-report").replace(/[\\/:*?"<>|]/g, "_") +
-                ".lint.txt"
-            ),
-          });
-
-          if (!uri) {
-            return;
-          }
-
-          const content = provider!.buildTxtReport(last);
-          await vscode.workspace.fs.writeFile(
-            uri,
-            Buffer.from(content, "utf8")
-          );
-          vscode.window.showInformationMessage(
-            "LINT: TXT exportado com sucesso."
-          );
-        } catch (e: any) {
-          vscode.window.showErrorMessage(
-            "LINT: Falha ao exportar TXT: " + (e?.message ?? String(e))
-          );
-        }
-      }
-    )
-  );
-
-  // ✅ comando do package.json: lintAdvplTlpp.ping
-  context.subscriptions.push(
-    vscode.commands.registerCommand("lintAdvplTlpp.ping", () => {
-      vscode.window.showInformationMessage("LINT: Ping OK");
     })
+  );
+
+  // register export command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("lint-advpl.exportTxt", async () => {
+      try {
+        const last = provider?.getLastResult();
+        if (!last) {
+          vscode.window.showWarningMessage(
+            "LINT: Nenhum resultado para exportar."
+          );
+          return;
+        }
+
+        const uri = await vscode.window.showSaveDialog({
+          saveLabel: "Exportar TXT",
+          filters: { Text: ["txt"] },
+          defaultUri: vscode.Uri.file(
+            (last.fileName || "lint-report").replace(/[\\/:*?"<>|]/g, "_") +
+              ".lint.txt"
+          ),
+        });
+
+        if (!uri) return;
+
+        const content = provider!.buildTxtReport(last);
+        await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
+        vscode.window.showInformationMessage(
+          "LINT: TXT exportado com sucesso."
+        );
+      } catch (e: any) {
+        vscode.window.showErrorMessage(
+          "LINT: Falha ao exportar TXT: " + (e?.message ?? String(e))
+        );
+      }
+    })
+  );
+
+  // ping command removed
+
+  // register open view command (reveals the activitybar view)
+  context.subscriptions.push(
+    vscode.commands.registerCommand("lint-advpl.openView", async () => {
+      try {
+        await vscode.commands.executeCommand(
+          "workbench.view.extension.lint-advpl"
+        );
+      } catch (e) {
+        // ignore
+      }
+    })
+  );
+
+  // register command to open a file at a given line/column from tree items
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.openFile",
+      async (uriString?: string, line?: number, col?: number) => {
+        try {
+          if (!uriString) return;
+          const uri = vscode.Uri.parse(uriString);
+          const doc = await vscode.workspace.openTextDocument(uri);
+          const ed = await vscode.window.showTextDocument(doc);
+          if (typeof line === "number" && typeof col === "number") {
+            const pos = new vscode.Position(
+              Math.max(0, line - 1),
+              Math.max(0, col - 1)
+            );
+            ed.selection = new vscode.Selection(pos, pos);
+            ed.revealRange(
+              new vscode.Range(pos, pos),
+              vscode.TextEditorRevealType.InCenter
+            );
+          }
+        } catch (e) {
+          // ignore errors opening
+        }
+      }
+    )
   );
 
   // ✅ (NOVO) ao ativar: se já tem um editor aberto, já analisa automaticamente
@@ -118,22 +166,11 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.onDidSaveTextDocument((doc) => {
       try {
-        if (!provider) {
-          return;
-        }
+        if (!provider) return;
 
-        const lastUri = provider.getLastUri();
-        if (!lastUri) {
-          return;
-        }
-
-        if (doc.uri.toString() !== lastUri) {
-          return;
-        }
-
+        // Re-analyze the saved document so diagnostics/lines update immediately.
         const text = doc.getText();
         const result = safeAnalyze(text, doc.fileName);
-
         provider.setResult(result, doc.uri, doc.version);
       } catch {
         // silencioso
@@ -185,5 +222,5 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
-  return analyzeDocument(sourceText, fileName);
+  return analyzer.analyzeDocument(sourceText, fileName);
 }

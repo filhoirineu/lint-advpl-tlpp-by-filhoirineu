@@ -1,14 +1,14 @@
 # LINT ADVPL/TLPP by @filhoirineu
 
-Extensao de lint local para fontes ADVPL/TLPP. O objetivo e identificar problemas comuns de escopo, nomenclatura e boas praticas sem depender de ambientes TOTVS.
+Extensão de lint para fontes ADVPL/TLPP. Identifica problemas comuns de escopo, nomenclatura e boas práticas sem depender do ambiente TOTVS.
 
 ## Visao geral
 
 - Analisa o arquivo ativo ao abrir, trocar de aba, editar ou salvar.
-- Sugere declaracao de `Local` e `Default` para variaveis usadas sem cabecalho.
-- Reporta issues de nomenclatura, tipo esperado, declaracoes duplicadas ou sem inicializacao, funcoes Static nao utilizadas e riscos com SQL dinamico.
-- Exibe resultados em uma webview lateral com resumo, sugestoes e lista de problemas.
-- Permite exportar o relatorio em TXT para compartilhamento.
+- Sugere declaração de `Local` e `Default` para variáveis usadas sem cabeçalho.
+- Reporta issues de nomenclatura, tipo esperado, declarações duplicadas ou sem inicialização, funções `Static` não utilizadas e riscos com SQL dinâmico.
+- Exibe resultados na aba lateral (Tree view) com agrupamento por regra e ocorrências.
+- Permite exportar o relatório em TXT para compartilhamento.
 
 ## Como usar no VS Code
 
@@ -18,35 +18,36 @@ Extensao de lint local para fontes ADVPL/TLPP. O objetivo e identificar problema
 
 ### Comandos disponiveis
 
-| Comando                                                   | Acao                                                               |
-| --------------------------------------------------------- | ------------------------------------------------------------------ |
-| `LINT ADVPL/TLPP: Analisar arquivo atual`                 | Forca uma nova analise do editor ativo e exibe toast de conclusao. |
-| `LINT ADVPL/TLPP: Exportar relatorio TXT (arquivo atual)` | Gera um TXT com sugestoes e issues detectadas no ultimo resultado. |
-| `LINT ADVPL/TLPP: Ping (teste)`                           | Mostra uma notificacao rapida para validar o ciclo de comandos.    |
+| Comando              | Ação                                                   |
+| -------------------- | ------------------------------------------------------ |
+| `Lint: Analyze`      | Força uma nova análise do editor ativo                 |
+| `Lint: Export TXT`   | Gera um TXT com sugestões e issues do último resultado |
+| `Lint: Open Sidebar` | Abre/foca a aba lateral da lint                        |
 
 ### Painel lateral
 
-- Botao **Atualizar** aciona o comando de analise manual.
-- Botao **Exportar TXT** chama a rotina de exportacao.
-- Botao **Ping View** executa o comando de ping.
-- Resumo traz contagem de blocos com problemas, Locals, Defaults e issues.
+- Implementado como `TreeDataProvider` (aba lateral) com grupos por `ruleId` e nós de ocorrência.
+- Cada ocorrência mostra severidade, variável, função e linha; descrição apresenta mensagem truncada para leitura rápida.
+- Ações rápidas: abrir o arquivo na linha da ocorrência e exportar relatório.
+
+Observação: o painel é a fonte primária de resultados — a publicação no painel Problems é opcional e controlada por configuração (veja abaixo).
 
 ## Principais verificacoes
 
-- Nomenclatura padrao hungaro (tipos incoerentes geram erro).
-- Declaracoes duplicadas (`Local`, `Private`, `Static`) na mesma linha.
-- Declaracoes sem inicializacao quando a regra exige valor inicial.
-- Variaveis globais (`Static`, `Private`) nao utilizadas.
-- Uso de `SetPrvt` com alerta para declaracao explicita.
-- Funcoes `Static` declaradas e nunca chamadas.
-- Construcoes de SQL dinamico que nao usam `TCQUERY` e `MpSysOpenQuery`.
+- `advpl/no-unused-local`: detecta `Local`/`Private` não usados — melhora para reconhecer usos dentro de inicializadores (strings) e evita mascarar inicializadores de outras declarações.
+- `advpl/require-local`: detecta atribuições para identificadores não declarados como `Local` (sugere declarar ou revisar).
+- `advpl/hungarian-notation`: checa prefixo/hungarian-style; relaxado para ignorar declarações que inicializam a partir de outro identificador ou chamam função (ex.: `Local x := y` ou `Local x := GetY()` não geram aviso de nome). Mantém validação de inicializador literal/esperado.
+- `advpl/suggest-default-for-params`: sugere marcar parâmetros como `Default` quando aplicável.
+
+Outras verificações: declarações duplicadas, funções `Static` não utilizadas, padrões de SQL/Query.
 
 ## Estrutura essencial
 
-- `src/extension.ts`: ponto de entrada, registra comandos, eventos e dispara analise.
-- `src/sidebar/LintSidebarProvider.ts`: renderiza webview com resultados e integra os botoes.
-- `src/analyzer/analyzer.ts`: implementa o motor de analise e regras de lint.
-- `src/analyzer/report.ts`: gera HTML e TXT a partir do resultado da analise.
+- `src/extension.ts`: ponto de entrada, registra comandos, eventos e inicializa o provedor lateral.
+- `src/sidebar/LintTreeProvider.ts`: implementa o `TreeDataProvider` que exibe e organiza os issues.
+- `src/analyzer/index.ts`: orquestra a execução das regras.
+- `src/analyzer/rules/advpl/`: regras modulares (ex.: `no-unused-local.ts`, `hungarian-notation.ts`, `require-local.ts`, `suggest-default-for-params.ts`).
+- `tools/runRuleTest.js`: runner local para validar regras contra arquivos de exemplo.
 
 ## Requisitos
 
@@ -70,32 +71,119 @@ npm run compile
 
 ### Compilar em modo watch
 
+---
+
+# 🔎 LINT ADVPL/TLPP — by @filhoirineu
+
+Extensão de lint para fontes ADVPL/TLPP que oferece sugestões de boas práticas, detecção de escopo e verificação de nomenclatura sem depender do ambiente TOTVS.
+
+---
+
+🎯 Destaques
+
+- Análise automática ao abrir/editar/salvar arquivos ADVPL/TLPP (.prw, .prx, .tlpp).
+- Resultados apresentados principalmente na aba lateral (Tree view), agrupados por regra.
+- Publicação opcional em Problems e squiggles configuráveis.
+
+---
+
+🛠️ Regras principais
+
+- ✅ `advpl/no-unused-local` — locais/privates não usados (heurísticas aprimoradas para inicializadores e strings).
+- ✅ `advpl/require-local` — detecta atribuições sem declaração `Local`.
+- ✅ `advpl/hungarian-notation` — valida notação estilo hungaro; ignora casos onde a variável é inicializada por outro identificador ou por chamada de função (ex.: `Local npOpc := nOpcPar`).
+- ✅ `advpl/suggest-default-for-params` — sugere `Default` para parâmetros quando apropriado.
+
+Outras verificações adicionais: duplicações de declaração, `Static` não utilizados, uso inseguro de SQL dinâmico, etc.
+
+---
+
+🧭 Painel lateral (UI)
+
+- Implementado como `TreeDataProvider`.
+- Estrutura: grupos por `ruleId` → ocorrências por arquivo/linha.
+- Cada ocorrência mostra: severidade • variável • função • linha, com descrição resumida.
+- Ações: abrir arquivo na linha da ocorrência, exportar relatório TXT.
+
+💡 Recomenda-se usar a aba lateral como fonte principal de informação; habilite a publicação em Problems apenas para revisão em lote.
+
+---
+
+⚙️ Configurações relevantes
+
+- `lint-advpl.showInProblems` (boolean, padrão `false`) — publica diagnostics no painel Problems quando `true`.
+- `lint-advpl.editorUnderline` (boolean, padrão `false`) — habilita squiggles/subinilhado no editor quando `true`.
+
+---
+
+🚀 Como usar (rápido)
+
+1. Abra um arquivo ADVPL/TLPP.
+2. A análise ocorre automaticamente; abra a aba lateral "LINT ADVPL/TLPP" para ver os resultados.
+3. Utilize os comandos para forçar análise ou exportar relatório.
+
+Comandos úteis:
+
+```bash
+Lint: Analyze       # força análise do arquivo ativo
+Lint: Export TXT    # exporta relatório em TXT
+Lint: Open Sidebar  # abre/foca a aba lateral
+```
+
+---
+
+🧩 Desenvolvimento
+
+Instalar dependências:
+
+```bash
+npm install
+```
+
+Compilar:
+
+```bash
+npm run compile
+```
+
+Modo watch:
+
 ```bash
 npm run watch
 ```
 
-### Analisar codigo fonte com ESLint
+Executar o test-harness de regras:
 
 ```bash
-npm run lint
+node tools/runRuleTest.js
 ```
 
-### Executar testes de extensao
+Debug (VS Code): pressione F5 para abrir uma janela de extensão e testar com arquivos ADVPL/TLPP.
 
-```bash
-npm test
-```
+---
 
-### Debug da extensao
+📁 Estrutura relevante
 
-1. Abra esta pasta no VS Code.
-2. Pressione F5 (ou "Run and Debug") para iniciar uma nova janela de extensao.
-3. Abra um arquivo ADVPL/TLPP na janela de teste e confira a aba lateral da lint.
+- `src/extension.ts` — registro de comandos e inicialização.
+- `src/sidebar/LintTreeProvider.ts` — TreeDataProvider (aba lateral).
+- `src/analyzer/index.ts` — orquestra execução das regras.
+- `src/analyzer/rules/advpl/` — regras modulares (ex.: `no-unused-local.ts`, `hungarian-notation.ts`, `require-local.ts`, `suggest-default-for-params.ts`).
+- `tools/runRuleTest.js` — runner local para validar as regras contra arquivos de exemplo.
 
-## Roadmap
+---
 
-- Adicionar screenshots/gravacoes da webview lateral.
-- Cobrir cenarios adicionais de regras (por exemplo, validacao de includes).
-- Expandir testes automatizados para cada regra principal.
+📝 Changelog rápido (últimas alterações)
 
-Contribuicoes internas sao bem-vindas via PR ou issue no repositorio privado.
+- Relaxamento da heurística de `hungarian-notation` para ignorar inicializações por outros identificadores ou chamadas de função.
+- `no-unused-local` melhorou detecção para usos em inicializadores e strings e passou a mascarar apenas a linha de declaração.
+- Adição da aba lateral como fonte primária de resultado; diagnostics em Problems agora são opcionais via configuração.
+
+---
+
+📬 Contribuições
+
+Contribuições internas são bem-vindas via PR ou issue no repositório privado. Se preferir, eu posso também adicionar exemplos visuais (screenshots/GIF) ou um changelog detalhado.
+
+---
+
+Se quiser ajustes no tom, mais emojis ou uma versão em inglês também — digo e faço! ✨

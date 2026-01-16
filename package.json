@@ -1,71 +1,79 @@
 {
-  "name": "lint-advpl-tlpp-by-filhoirineu",
-  "displayName": "LINT ADVPL/TLPP by @filhoirineu",
-  "description": "Lint interno ADVPL/TLPP",
-  "publisher": "interno",
+  "name": "lint-advpl-sidebar",
+  "displayName": "Lint AdvPL Sidebar",
+  "description": "Minimal VS Code extension showing lint results in a sidebar (no toasts/problems).",
   "version": "0.0.1",
+  "publisher": "local",
   "engines": {
-    "vscode": "^1.108.0"
+    "vscode": "^1.60.0"
   },
   "categories": [
     "Other"
   ],
-  "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished",
-    "onView:lintAdvplTlpp.sidebar",
-    "onCommand:lintAdvplTlpp.analyzeCurrentFile",
-    "onCommand:lintAdvplTlpp.exportReportTxt",
-    "onCommand:lintAdvplTlpp.ping"
+    "onView:lint-advpl.sidebar",
+    "onCommand:lint-advpl.analyze",
+    "onCommand:lint-advpl.exportTxt"
   ],
+  "main": "out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "lintAdvplTlpp.analyzeCurrentFile",
-        "title": "LINT ADVPL/TLPP: Analisar arquivo atual"
+        "command": "lint-advpl.analyze",
+        "title": "LINT ADVPL: Analisar arquivo atual"
       },
       {
-        "command": "lintAdvplTlpp.exportReportTxt",
-        "title": "LINT ADVPL/TLPP: Exportar relatório TXT (arquivo atual)"
+        "command": "lint-advpl.exportTxt",
+        "title": "LINT ADVPL: Exportar relatório TXT (arquivo atual)"
       },
       {
-        "command": "lintAdvplTlpp.ping",
-        "title": "LINT ADVPL/TLPP: Ping (teste)"
+        "command": "lint-advpl.openView",
+        "title": "LINT ADVPL: Open Sidebar"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "lintAdvplTlppContainer",
-          "title": "LINT ADVPL/TLPP",
+          "id": "lint-advpl",
+          "title": "LINT",
           "icon": "media/icon.svg"
         }
       ]
     },
     "views": {
-      "lintAdvplTlppContainer": [
+      "lint-advpl": [
         {
-          "id": "lintAdvplTlpp.sidebar",
-          "name": "Análise (arquivo atual)",
-          "type": "webview"
+          "id": "lint-advpl.sidebar",
+          "name": "Lint Results",
+          "icon": "media/icon.svg"
         }
       ]
+    },
+    "configuration": {
+      "type": "object",
+      "title": "Lint AdvPL",
+      "properties": {
+        "lint-advpl.showInProblems": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show lint issues in the Problems panel."
+        },
+        "lint-advpl.editorUnderline": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, show underlines/squiggles in the editor for issues; when false, publish issues to Problems without underlining code."
+        }
+      }
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./",
-    "lint": "eslint src"
+    "watch": "tsc -w -p ./"
   },
   "devDependencies": {
-    "@types/vscode": "^1.108.1",
-    "@types/node": "22.x",
-    "@types/mocha": "^10.0.10",
-    "typescript": "^5.9.3",
-    "eslint": "^9.39.2",
-    "typescript-eslint": "^8.52.0",
-    "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "typescript": "^4.9.5",
+    "@types/node": "^18.0.0",
+    "@types/vscode": "^1.79.0"
   }
 }
