@@ -55,4 +55,3 @@ For guidance on writing changelog entries see: http://keepachangelog.com/
 
 - Grouped SetPrvt suggestions into a single diagnostic per call (was one per variable).
 - Reduced false-positives for unused-local and adjusted positional diagnostics.
-

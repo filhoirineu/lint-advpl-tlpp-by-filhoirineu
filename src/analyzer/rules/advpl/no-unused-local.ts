@@ -48,7 +48,8 @@ export function run(
         const usageRe = new RegExp("\\b" + key + "\\b", "i");
         // mask declaration line so it doesn't match itself
         const declAbsIndex = cur.index + lm.index;
-        const declLineStart = sourceText.lastIndexOf("\n", cur.index + lm.index) + 1;
+        const declLineStart =
+          sourceText.lastIndexOf("\n", cur.index + lm.index) + 1;
         const declLineEnd = sourceText.indexOf("\n", cur.index + lm.index);
         // mask only the current declaration line so we don't hide usages
         const declLine = lm[0] || "";
@@ -68,14 +69,18 @@ export function run(
         let searchTextForUsage = blockForSearch;
         if ((kind || "").toLowerCase() === "private") {
           const fullBefore = sourceText.slice(0, cur.index + lm.index);
-          const fullAfter = sourceText.slice(cur.index + lm.index + declLine.length);
+          const fullAfter = sourceText.slice(
+            cur.index + lm.index + declLine.length
+          );
           const maskedFull = fullBefore + maskedDecl + fullAfter;
           searchTextForUsage = maskedFull;
         }
 
         // include anonymous blocks {|| ... } inside the block (they are part of blockText already)
 
-        const has = usageRe.test(searchTextForUsage) || stringUsageRe.test(searchTextForUsage);
+        const has =
+          usageRe.test(searchTextForUsage) ||
+          stringUsageRe.test(searchTextForUsage);
         if (!has) {
           // locate line/column (use position of identifier within the declaration)
           const idPosInDecl = (lm[0] || "").indexOf(id);

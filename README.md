@@ -90,6 +90,7 @@ Extensão de lint para fontes ADVPL/TLPP que oferece sugestões de boas prática
 🛠️ Regras principais
 
 - ✅ `advpl/no-unused-local` — locais/privates não usados (heurísticas aprimoradas para inicializadores e strings).
+
 # LINT ADVPL/TLPP — extensão
 
 Versão: 0.0.4
@@ -97,28 +98,33 @@ Versão: 0.0.4
 Extensão de lint para fontes ADVPL/TLPP (arquivo local). Fornece sugestões sobre escopo (`Local`/`Private`), nomenclatura estilo húngaro, inicializadores e boas práticas.
 
 Principais características
+
 - Análise automática ao abrir/editar/trocar arquivo (suporte: `.prw`, `.prx`, `.tlpp`).
 - Painel lateral (Tree view) com agrupamento por regra; export para TXT.
 - Regras configuráveis e opção para publicar issues no painel Problems.
 
 Regras importantes
+
 - `advpl/no-unused-local` — detecta `Local`/`Private` não usados; agora reconhece usos em inicializadores/strings e aceita `Private` declaradas no arquivo (busca global mascarando a linha de declaração).
 - `advpl/require-local` — alerta quando um identificador recebe valor sem declaração `Local`.
 - `advpl/hungarian-notation` — valida prefixos e inicializadores esperados; relaxado para casos onde a variável é inicializada a partir de outro identificador ou chamada de função.
 - `advpl/require-explicit-private` — sugere declarar explicitamente `Private` em vez de `SetPrvt(...)` (agrega sugestões por chamada e propõe inicializadores seguindo mapeamento heurístico).
 
 Configurações (em `package.json`)
+
 - `lint-advpl.showInProblems` (boolean): publica issues em Problems.
 - `lint-advpl.editorUnderline` (boolean): controla squiggles no editor.
 - `lint-advpl.ignoredNames` (string[]): nomes a serem ignorados pela regra `no-unused-local` (case-insensitive).
 
 Como usar (rápido)
+
 1. Instale dependências: `npm install`
 2. Compile: `npm run compile`
 3. Abra um arquivo ADVPL/TLPP no VS Code — a análise ocorre automaticamente.
 4. Use o comando `Lint: Export TXT` para salvar um relatório.
 
 Desenvolvimento
+
 - Runner de teste de regras: `node tools/runRuleTest.js`
 - Compilar em watch: `npm run watch`
 
@@ -131,4 +137,3 @@ GPL-3.0 (ver `LICENSE`)
 ---
 
 Se quiser, adapto uma versão em inglês ou adiciono screenshots para o README.
-
