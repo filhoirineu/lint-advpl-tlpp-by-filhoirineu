@@ -8,19 +8,19 @@ import { run as runRequireExplicitPrivate } from "./rules/advpl/require-explicit
 export function analyzeDocument(
   sourceText: string,
   fileName: string,
-  options?: { ignoredNames?: string[] }
+  options?: { ignoredNames?: string[]; hungarianSuggestInitializers?: boolean }
 ): AnalysisResult {
   const issues: Issue[] = [];
 
   // run core advpl rules for now
   issues.push(...runNoUnusedLocal(sourceText, fileName, options));
   // prefer explicit Private declarations instead of SetPrvt(...)
-  issues.push(...runRequireExplicitPrivate(sourceText, fileName));
+  issues.push(...runRequireExplicitPrivate(sourceText, fileName, options));
   // suggest default params should run before require-local so defaults
   // are recognized and do not trigger require-local warnings
   issues.push(...runSuggestDefaultParams(sourceText, fileName));
-  issues.push(...runRequireLocal(sourceText, fileName));
-  issues.push(...runHungarian(sourceText, fileName));
+  issues.push(...runRequireLocal(sourceText, fileName, options));
+  issues.push(...runHungarian(sourceText, fileName, options));
 
   const summary = {
     blocksWithIssues: 0,

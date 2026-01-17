@@ -9,17 +9,52 @@ export function run(
   const issues: Issue[] = [];
 
   // Names to ignore for unused-local checks (project-specific exceptions)
-  const defaultIgnored = ["aRotina", "cCadastro"];
+  const defaultIgnored = ["aRotina", "cCadastro", "INCLUI", "ALTERA"];
   const fromOptions = (options && options.ignoredNames) || [];
   const merged = Array.from(new Set([...defaultIgnored, ...fromOptions]));
   const IGNORED_NAMES = new Set(merged.map((s) => s.toLowerCase()));
 
-  const funcRe =
-    /\b(User\s*Function|Static\s*Function|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
+  // detect class attribute declarations (tlpp): public Data <name> ...
+  const classAttrRe =
+    /\b(public|private|protected)\b\s+Data\b\s+([A-Za-z_][A-Za-z0-9_]*)/gim;
+  let ca: RegExpExecArray | null = null;
+  while ((ca = classAttrRe.exec(sourceText))) {
+    IGNORED_NAMES.add((ca[2] || "").toLowerCase());
+  }
+
+  // detect function-like blocks including User Function, Static Function,
+  // Function, Method, WsMethod and WSRESTFUL; extract a sensible name for each
   const funcStarts: { index: number; name: string }[] = [];
+  const tokenRe =
+    /\b(User\s*Function|Static\s*Function|Function|WsMethod|WSMETHOD|WSRESTFUL|Method)\b/gi;
+  const scanSource = sourceText
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n\r]*/g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(['"]).*?\1/g, (m) => m.replace(/[^\n]/g, " "));
+
   let fm: RegExpExecArray | null = null;
-  while ((fm = funcRe.exec(sourceText))) {
-    funcStarts.push({ index: fm.index, name: fm[2] });
+  while ((fm = tokenRe.exec(scanSource))) {
+    const idx = fm.index;
+    const tail = sourceText.slice(idx, Math.min(sourceText.length, idx + 300));
+    const after = tail.slice(fm[0].length).trim();
+    let name = "<anon>";
+    if (/^\s*WSRESTFUL/i.test(fm[0])) {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    } else if (/^\s*WsMethod/i.test(fm[0]) || /^\s*WSMETHOD/i.test(fm[0])) {
+      const m = after.match(
+        /^[A-Za-z_][A-Za-z0-9_]*\s+([A-Za-z_][A-Za-z0-9_]*)/i
+      );
+      if (m) name = m[1];
+      else {
+        const m2 = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+        if (m2) name = m2[1];
+      }
+    } else {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    }
+    funcStarts.push({ index: idx, name });
   }
 
   // add sentinel for end
@@ -37,7 +72,11 @@ export function run(
       const kind = lm[1] ?? "Local";
       const tail = lm[2] ?? "";
       // take left-hand side before := or = to avoid RHS identifiers
-      const declPart = tail.split(/[:=]/)[0];
+      // take left-hand side before := or = to avoid RHS identifiers
+      // and strip any trailing 'As <Type>' clause so type names are not
+      // interpreted as identifiers (e.g. `Local aRet As Array`)
+      let declPart = tail.split(/[:=]/)[0];
+      declPart = declPart.split(/\bAs\b/i)[0];
       const ids = (declPart.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []).filter(
         (s) => s.toLowerCase() !== "local"
       );
@@ -95,7 +134,7 @@ export function run(
             severity: "warning",
             line,
             column,
-            message: `Escopo: ${kind}\n\nFunção: User ${cur.name}\n\nVariável: \"${id}\" declarada mas não utilizada no bloco`,
+            message: `Escopo: ${kind} — Função: User ${cur.name} — Variável: "${id}" declarada mas não utilizada no bloco`,
           });
         }
       }

@@ -10,6 +10,14 @@ Extensão de lint para fontes ADVPL/TLPP. Identifica problemas comuns de escopo,
 - Exibe resultados na aba lateral (Tree view) com agrupamento por regra e ocorrências.
 - Permite exportar o relatório em TXT para compartilhamento.
 
+## Novidades na versão 0.0.5
+
+- Sugestões de inicializadores configuráveis por prefixo (ex.: `a` -> `:= {}`, `c` -> `:= ""`, `n` -> `:= 0`). Controlável por `lint-advpl.hungarianSuggestInitializers` (padrão: true).
+- `WSMETHOD`/`WSRESTFUL` parsing melhorado: nomes de método (ex.: `WSMETHOD GET reImprime`) agora são extraídos corretamente, evitando que o verbo `GET` apareça como nome da função.
+- `advpl/suggest-default-for-params` não sugere `Default` dentro de implementações de `WSMETHOD`/`WSREST` (reduz falsos-positivos em endpoints).
+- Melhor tratamento de declarações `Local <name> As <Type>` para evitar que o tipo (ex.: `Array`) seja reportado como identificador.
+- Nova configuração padrão `lint-advpl.hungarianSuggestInitializers` adicionada (veja `package.json`).
+
 ## Como usar no VS Code
 
 1. Abra um arquivo ADVPL/TLPP (.prw, .prx, .tlpp etc.).
@@ -38,6 +46,11 @@ Observação: o painel é a fonte primária de resultados — a publicação no 
 - `advpl/require-local`: detecta atribuições para identificadores não declarados como `Local` (sugere declarar ou revisar).
 - `advpl/hungarian-notation`: checa prefixo/hungarian-style; relaxado para ignorar declarações que inicializam a partir de outro identificador ou chamam função (ex.: `Local x := y` ou `Local x := GetY()` não geram aviso de nome). Mantém validação de inicializador literal/esperado.
 - `advpl/suggest-default-for-params`: sugere marcar parâmetros como `Default` quando aplicável.
+
+Novas conveniências
+
+- Pequenas ferramentas auxiliares em `tools/` para inspeção de issues, geração de top-100 e execução recursiva de análise em pastas grandes.
+- Mensagens de diagnóstico normalizadas (uma linha) para melhor integração com Problems/IDE.
 
 Outras verificações: declarações duplicadas, funções `Static` não utilizadas, padrões de SQL/Query.
 
@@ -114,7 +127,17 @@ Configurações (em `package.json`)
 
 - `lint-advpl.showInProblems` (boolean): publica issues em Problems.
 - `lint-advpl.editorUnderline` (boolean): controla squiggles no editor.
-- `lint-advpl.ignoredNames` (string[]): nomes a serem ignorados pela regra `no-unused-local` (case-insensitive).
+- `lint-advpl.ignoredNames` (string[]): lista (case-insensitive) de identificadores que o analisador deve ignorar. Atualmente é respeitada pelas regras `advpl/no-unused-local`, `advpl/hungarian-notation`, `advpl/require-local` e `advpl/require-explicit-private` — adicione nomes de projeto como `aRotina`, `cCadastro`, `INCLUI`, `ALTERA` para evitar falsos-positivos.
+
+Exemplo de `settings.json` (Workspace) — coloque em `.vscode/settings.json` para aplicar ao projeto:
+
+```json
+{
+  "lint-advpl.ignoredNames": ["aRotina", "cCadastro", "INCLUI", "ALTERA"],
+  "lint-advpl.showInProblems": true,
+  "lint-advpl.editorUnderline": false
+}
+```
 
 Como usar (rápido)
 

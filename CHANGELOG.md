@@ -4,9 +4,29 @@ All notable changes to this project will be documented in this file.
 
 This project follows the Keep a Changelog format and aims to use Semantic Versioning.
 
+## [0.0.5] - 2026-01-17
+
+Small release with heuristics improvements, new initializer suggestions and better WSMETHOD handling.
+
+### Added
+
+- Config `lint-advpl.hungarianSuggestInitializers` (default: true) to enable/disable prefix-based initializer suggestions.
+- Initializer suggestions for common Hungarian prefixes (`a`,`c`,`s`,`n`,`l`,`o`,`j`,`u`,`x`,`b`) when a variable is declared without initializer.
+
+### Changed
+
+- `WSMETHOD`/`WSRESTFUL` parsing improved so method names are correctly extracted (e.g. `reImprime` instead of `GET`).
+- `advpl/suggest-default-for-params` now skips suggestions inside `WSMETHOD`/`WSREST` implementations to reduce false positives on endpoints.
+- `Local <name> As <Type>` parsing fixed so type names (ex.: `Array`) are not treated as identifiers by rules.
+- Diagnostic messages normalized to single-line format for better Problems panel rendering.
+
+### Fixed
+
+- Reduced multiple false positives on declaration lines (now a single, focused initializer suggestion when appropriate).
+
 ## [Unreleased]
 
-No user-facing changes pending; see the latest release notes below.
+Work in progress: further tuning and documentation updates.
 
 ## [0.0.2] - 2026-01-16
 

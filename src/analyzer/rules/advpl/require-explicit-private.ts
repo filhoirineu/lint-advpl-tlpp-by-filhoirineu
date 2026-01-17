@@ -1,15 +1,50 @@
 import { Issue } from "../../types";
 
 // Suggest explicit `Private` declarations instead of using SetPrvt("A,B,C")
-export function run(sourceText: string, fileName: string): Issue[] {
+export function run(
+  sourceText: string,
+  fileName: string,
+  options?: { ignoredNames?: string[] }
+): Issue[] {
   const issues: Issue[] = [];
 
-  const funcRe =
-    /\b(User\s*Function|Static\s*Function|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
+  const IGNORED_NAMES = new Set(
+    (options?.ignoredNames || []).map((s) => s.toLowerCase())
+  );
+
+  // detect function-like blocks including User Function, Static Function,
+  // Function, Method, WsMethod and WSRESTFUL; extract a sensible name for each
   const funcStarts: { index: number; name: string }[] = [];
+  const tokenRe =
+    /\b(User\s*Function|Static\s*Function|Function|WsMethod|WSMETHOD|WSRESTFUL|Method)\b/gi;
+  const scanSource = sourceText
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n\r]*/g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(['"]).*?\1/g, (m) => m.replace(/[^\n]/g, " "));
+
   let fm: RegExpExecArray | null = null;
-  while ((fm = funcRe.exec(sourceText))) {
-    funcStarts.push({ index: fm.index, name: fm[2] });
+  while ((fm = tokenRe.exec(scanSource))) {
+    const idx = fm.index;
+    const tail = sourceText.slice(idx, Math.min(sourceText.length, idx + 300));
+    const after = tail.slice(fm[0].length).trim();
+    let name = "<anon>";
+    if (/^\s*WSRESTFUL/i.test(fm[0])) {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    } else if (/^\s*WsMethod/i.test(fm[0]) || /^\s*WSMETHOD/i.test(fm[0])) {
+      const m = after.match(
+        /^[A-Za-z_][A-Za-z0-9_]*\s+([A-Za-z_][A-Za-z0-9_]*)/i
+      );
+      if (m) name = m[1];
+      else {
+        const m2 = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+        if (m2) name = m2[1];
+      }
+    } else {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    }
+    funcStarts.push({ index: idx, name });
   }
   funcStarts.push({ index: sourceText.length, name: "<EOF>" });
 
@@ -36,7 +71,8 @@ export function run(sourceText: string, fileName: string): Issue[] {
     const names = varsString
       .split(/\s*,\s*/)
       .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+      .filter((s) => s.length > 0)
+      .filter((s) => !IGNORED_NAMES.has(s.toLowerCase()));
 
     // Build grouped suggestions for all names in this SetPrvt call
     const decls: string[] = [];
@@ -145,6 +181,9 @@ export function run(sourceText: string, fileName: string): Issue[] {
       decls.push(`Private ${suggested} := ${initLiteral}`);
     }
 
+    // if all names were filtered due to ignoredNames, skip
+    if (names.length === 0) continue;
+
     // compute location at start of the SetPrvt call
     const prefix = sourceText.slice(0, matchIndex);
     const line = prefix.split(/\r?\n/).length;
@@ -155,7 +194,7 @@ export function run(sourceText: string, fileName: string): Issue[] {
       severity: "info",
       line,
       column,
-      message: `SetPrvt declara\u00E7\u00E3o detectada. Sugest\u00F5es:\n${decls.join("\n")}`,
+      message: `SetPrvt detectada — Sugestões: ${decls.join(" ; ")}`,
     });
   }
 

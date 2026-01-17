@@ -2,15 +2,53 @@ import { Issue } from "../../types";
 
 // Rule: detect assignments to identifiers that are not declared as Local
 // and not declared as Private or Static (ignore Static Function).
-export function run(sourceText: string, fileName: string): Issue[] {
+export function run(
+  sourceText: string,
+  fileName: string,
+  options?: { ignoredNames?: string[] }
+): Issue[] {
   const issues: Issue[] = [];
 
-  const funcRe =
-    /\b(User\s*Function|Static\s*Function|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
+  const IGNORED_NAMES = new Set(
+    (options?.ignoredNames || []).map((s) => s.toLowerCase())
+  );
+
+  // detect function-like blocks including User Function, Static Function,
+  // Function, Method, WsMethod and WSRESTFUL; extract a sensible name for each
   const funcStarts: { index: number; name: string }[] = [];
+  const tokenRe =
+    /\b(User\s*Function|Static\s*Function|Function|WsMethod|WSMETHOD|WSRESTFUL|Method)\b/gi;
+  // mask strings and comments so token matching ignores occurrences inside them
+  const scanSource = sourceText
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/\/\/[^\n\r]*/g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(['"]).*?\1/g, (m) => m.replace(/[^\n]/g, " "));
+
   let fm: RegExpExecArray | null = null;
-  while ((fm = funcRe.exec(sourceText))) {
-    funcStarts.push({ index: fm.index, name: fm[2] });
+  while ((fm = tokenRe.exec(scanSource))) {
+    const idx = fm.index;
+    const token = fm[1] || "";
+    const tail = sourceText.slice(idx, Math.min(sourceText.length, idx + 300));
+    const after = tail.slice(fm[0].length).trim();
+    let name = "<anon>";
+    if (/^\s*WSRESTFUL/i.test(fm[0])) {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    } else if (/^\s*WsMethod/i.test(fm[0]) || /^\s*WSMETHOD/i.test(fm[0])) {
+      // WSMETHOD <VERB> <name> ...
+      const m = after.match(
+        /^[A-Za-z_][A-Za-z0-9_]*\s+([A-Za-z_][A-Za-z0-9_]*)/i
+      );
+      if (m) name = m[1];
+      else {
+        const m2 = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+        if (m2) name = m2[1];
+      }
+    } else {
+      const m = after.match(/([A-Za-z_][A-Za-z0-9_]*)/);
+      if (m) name = m[1];
+    }
+    funcStarts.push({ index: idx, name });
   }
   funcStarts.push({ index: sourceText.length, name: "<EOF>" });
 
@@ -27,6 +65,15 @@ export function run(sourceText: string, fileName: string): Issue[] {
     for (const id of ids) globalPrivates.add(id.toLowerCase());
   }
 
+  // collect class attribute declarations (tlpp classes: public Data <name> ...)
+  const classAttrs = new Set<string>();
+  const classAttrRe =
+    /\b(public|private|protected)\b\s+Data\b\s+([A-Za-z_][A-Za-z0-9_]*)/gim;
+  let ca: RegExpExecArray | null = null;
+  while ((ca = classAttrRe.exec(sourceText))) {
+    classAttrs.add((ca[2] || "").toLowerCase());
+  }
+
   for (let i = 0; i < funcStarts.length - 1; i++) {
     const cur = funcStarts[i];
     const next = funcStarts[i + 1];
@@ -36,6 +83,26 @@ export function run(sourceText: string, fileName: string): Issue[] {
     const locals = new Set<string>();
     const privates = new Set<string>();
     const statics = new Set<string>();
+
+    // collect function parameters from the declaration line and treat them as declared
+    try {
+      const declLine = sourceText
+        .slice(cur.index, Math.min(sourceText.length, cur.index + 200))
+        .split(/\r?\n/)[0];
+      const paramsMatch =
+        /\b(?:User\s*Function|Static\s*Function|Function|Method|WsMethod)\b\s+[A-Za-z_][A-Za-z0-9_]*\s*\(([^)]*)\)/i.exec(
+          declLine
+        );
+      if (paramsMatch && paramsMatch[1]) {
+        const params = paramsMatch[1]
+          .split(",")
+          .map((s) => s.trim())
+          .filter((s) => !!s && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s));
+        for (const p of params) locals.add(p.toLowerCase());
+      }
+    } catch {
+      // ignore
+    }
 
     const localRe = /^\s*Local\b([^\r\n]*)/gim;
     let lm: RegExpExecArray | null = null;
@@ -109,13 +176,25 @@ export function run(sourceText: string, fileName: string): Issue[] {
       const prev2 = idx >= 2 ? masked.slice(idx - 2, idx) : "";
       if (prev2 === "->") continue;
 
+      // check raw preceding text to ignore qualified assignments like self:cAttr or ::cAttr
+      const absIdx = cur.index + idx;
+      const beforeRaw = sourceText.slice(Math.max(0, absIdx - 8), absIdx);
+      if (/\bself\b\s*:\s*$/i.test(beforeRaw)) continue;
+      if (/::\s*$/.test(beforeRaw)) continue;
+      if (/\bthis\b\s*:\s*$/i.test(beforeRaw)) continue;
+      // skip general object/property access like obj:prop (e.g. oItem:codigo)
+      if (/\b[A-Za-z_][A-Za-z0-9_]*\s*:\s*$/i.test(beforeRaw)) continue;
+
+      if (IGNORED_NAMES.has(id.toLowerCase())) continue;
+
       const key = id.toLowerCase();
       // if declared as Local/Private/Static in this block or declared Private anywhere, skip
       if (
         locals.has(key) ||
         privates.has(key) ||
         statics.has(key) ||
-        globalPrivates.has(key)
+        globalPrivates.has(key) ||
+        classAttrs.has(key)
       )
         continue;
 
@@ -130,7 +209,7 @@ export function run(sourceText: string, fileName: string): Issue[] {
         severity: "warning",
         line,
         column,
-        message: `Variável "${id}" recebe valor mas não é declarada como Local (verifique se deve ser Local).`,
+        message: `Função: User ${cur.name} — Variável: "${id}" recebe valor mas não é declarada como Local.`,
         functionName: cur.name,
       });
     }
