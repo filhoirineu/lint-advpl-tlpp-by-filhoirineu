@@ -232,5 +232,11 @@ export function activate(context: vscode.ExtensionContext) {
 export function deactivate() {}
 
 function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
-  return analyzer.analyzeDocument(sourceText, fileName);
+  try {
+    const cfg = vscode.workspace.getConfiguration("lint-advpl");
+    const ignoredNames = cfg.get<string[]>("ignoredNames", []);
+    return analyzer.analyzeDocument(sourceText, fileName, { ignoredNames });
+  } catch {
+    return analyzer.analyzeDocument(sourceText, fileName);
+  }
 }

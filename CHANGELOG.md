@@ -37,3 +37,22 @@ No user-facing changes pending; see the latest release notes below.
 ---
 
 For guidance on writing changelog entries see: http://keepachangelog.com/
+
+## [0.0.4] - 2026-01-16
+
+### Added
+
+- New rule `advpl/require-explicit-private`: detects uses of `SetPrvt("A,B,C")` and suggests explicit `Private` declarations with heuristic initializers; suggestions are grouped per `SetPrvt` call.
+- New configuration `lint-advpl.ignoredNames` to allow per-project exceptions for `no-unused-local`.
+
+### Changed
+
+- `advpl/no-unused-local`: when a variable is declared as `Private`, search the whole document (masking the declaration line) so usages in other functions are recognized; default project exceptions include `aRotina`, `cCadastro`.
+- `advpl/hungarian-notation`: added minimal-length validation and refined heuristics for initializers.
+- README updated and simplified for Marketplace readiness.
+
+### Fixed
+
+- Grouped SetPrvt suggestions into a single diagnostic per call (was one per variable).
+- Reduced false-positives for unused-local and adjusted positional diagnostics.
+

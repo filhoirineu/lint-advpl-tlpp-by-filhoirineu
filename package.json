@@ -1,8 +1,8 @@
 {
-  "name": "lint-advpl-sidebar",
-  "displayName": "Lint AdvPL Sidebar",
+  "name": "lint-advpl-tlpp",
+  "displayName": "Lint AdvPL/TLPP",
   "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -69,6 +69,17 @@
           "type": "boolean",
           "default": false,
           "description": "When true, show underlines/squiggles in the editor for issues; when false, publish issues to Problems without underlining code."
+        },
+        "lint-advpl.ignoredNames": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "aRotina",
+            "cCadastro"
+          ],
+          "description": "List of variable names (case-insensitive) to ignore for the unused-local rule. Use simple identifiers, without quotes."
         }
       }
     },

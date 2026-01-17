@@ -1,8 +1,18 @@
 import { Issue } from "../../types";
 
 // Very small heuristic: find Local declarations and check for usages inside the same function/block.
-export function run(sourceText: string, fileName: string): Issue[] {
+export function run(
+  sourceText: string,
+  fileName: string,
+  options?: { ignoredNames?: string[] }
+): Issue[] {
   const issues: Issue[] = [];
+
+  // Names to ignore for unused-local checks (project-specific exceptions)
+  const defaultIgnored = ["aRotina", "cCadastro"];
+  const fromOptions = (options && options.ignoredNames) || [];
+  const merged = Array.from(new Set([...defaultIgnored, ...fromOptions]));
+  const IGNORED_NAMES = new Set(merged.map((s) => s.toLowerCase()));
 
   const funcRe =
     /\b(User\s*Function|Static\s*Function|Function|Method|WsMethod)\b\s+([A-Za-z_][A-Za-z0-9_]*)/gi;
@@ -32,13 +42,13 @@ export function run(sourceText: string, fileName: string): Issue[] {
         (s) => s.toLowerCase() !== "local"
       );
       for (const id of ids) {
+        if (IGNORED_NAMES.has(id.toLowerCase())) continue;
         // build word regex
         const key = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const usageRe = new RegExp("\\b" + key + "\\b", "i");
         // mask declaration line so it doesn't match itself
         const declAbsIndex = cur.index + lm.index;
-        const declLineStart =
-          sourceText.lastIndexOf("\n", cur.index + lm.index) + 1;
+        const declLineStart = sourceText.lastIndexOf("\n", cur.index + lm.index) + 1;
         const declLineEnd = sourceText.indexOf("\n", cur.index + lm.index);
         // mask only the current declaration line so we don't hide usages
         const declLine = lm[0] || "";
@@ -53,10 +63,19 @@ export function run(sourceText: string, fileName: string): Issue[] {
           "i"
         );
 
+        // If the declaration is `Private`, it may be referenced from other functions
+        // so search the whole sourceText (with the declaration line masked) instead
+        let searchTextForUsage = blockForSearch;
+        if ((kind || "").toLowerCase() === "private") {
+          const fullBefore = sourceText.slice(0, cur.index + lm.index);
+          const fullAfter = sourceText.slice(cur.index + lm.index + declLine.length);
+          const maskedFull = fullBefore + maskedDecl + fullAfter;
+          searchTextForUsage = maskedFull;
+        }
+
         // include anonymous blocks {|| ... } inside the block (they are part of blockText already)
 
-        const has =
-          usageRe.test(blockForSearch) || stringUsageRe.test(blockForSearch);
+        const has = usageRe.test(searchTextForUsage) || stringUsageRe.test(searchTextForUsage);
         if (!has) {
           // locate line/column (use position of identifier within the declaration)
           const idPosInDecl = (lm[0] || "").indexOf(id);

@@ -37,6 +37,25 @@ export function run(sourceText: string, fileName: string): Issue[] {
       if (!id) return;
       const key = id.toLowerCase();
       if (reported.has(key)) return;
+      // enforce minimal name length: at least 2 characters when
+      // ignoring leading underscores; if name starts with '_' require
+      // at least 3 characters total (equivalent to stripped length >= 2)
+      const stripped = id.replace(/^_+/, "");
+      if (stripped.length < 2) {
+        reported.add(key);
+        const prefix = sourceText.slice(0, absPos);
+        const line = prefix.split(/\r?\n/).length;
+        const column = (prefix.split(/\r?\n/).pop()?.length ?? 0) + 1;
+        issues.push({
+          ruleId: "advpl/hungarian-notation",
+          severity: "warning",
+          line,
+          column,
+          message: `Nome de variável \"${id}\" muito curto: use pelo menos 2 caracteres (3 se iniciar com '_').`,
+          functionName: cur.name,
+        });
+        return;
+      }
       // find first valid letter/digit after underscores
       let pos = 0;
       while (pos < id.length && id[pos] === "_") pos++;
