@@ -235,7 +235,34 @@ function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
   try {
     const cfg = vscode.workspace.getConfiguration("lint-advpl");
     const ignoredNames = cfg.get<string[]>("ignoredNames", []);
-    return analyzer.analyzeDocument(sourceText, fileName, { ignoredNames });
+    const enableRules = cfg.get<boolean>("enableRules", true);
+    const rules = cfg.get<Record<string, boolean>>("rules", {});
+    const hungarianSuggestInitializers = cfg.get<boolean>(
+      "hungarianSuggestInitializers",
+      true
+    );
+    const hungarianIgnoreAsType = cfg.get<boolean>(
+      "hungarianIgnoreAsType",
+      true
+    );
+    const requireDocHeaderRequireName = cfg.get<boolean>(
+      "requireDocHeaderRequireName",
+      true
+    );
+    const requireDocHeaderIgnoreWsMethodInWsRestful = cfg.get<boolean>(
+      "requireDocHeaderIgnoreWsMethodInWsRestful",
+      true
+    );
+
+    return analyzer.analyzeDocument(sourceText, fileName, {
+      ignoredNames,
+      hungarianSuggestInitializers,
+      hungarianIgnoreAsType,
+      requireDocHeaderRequireName,
+      requireDocHeaderIgnoreWsMethodInWsRestful,
+      enableRules,
+      enabledRules: rules,
+    });
   } catch {
     return analyzer.analyzeDocument(sourceText, fileName);
   }

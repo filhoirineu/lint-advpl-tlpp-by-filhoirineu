@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TLPP",
   "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -87,6 +87,42 @@
           "type": "boolean",
           "default": true,
           "description": "When true, suggest initializer templates for variables based on Hungarian-style prefixes (e.g. 'a' -> ':= {}')."
+        },
+        "lint-advpl.hungarianIgnoreAsType": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, do not suggest initializers for declarations that already include `As <Type>` (they are type-initialized)."
+        },
+        "lint-advpl.requireDocHeaderRequireName": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, require the doc header to include the function/method name after `{Protheus.doc}` (e.g. `{Protheus.doc} myFunction`)."
+        },
+        "lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, ignore `WSMETHOD` declarations that are inside `WSRESTFUL ... END WSRESTFUL` blocks for doc-header checks."
+        },
+        "lint-advpl.enableRules": {
+          "type": "boolean",
+          "default": true,
+          "description": "Master switch to enable/disable all lint rules provided by this extension."
+        },
+        "lint-advpl.rules": {
+          "type": "object",
+          "default": {
+            "advpl/no-unused-local": true,
+            "advpl/require-doc-header": true,
+            "advpl/require-local": true,
+            "advpl/hungarian-notation": true,
+            "advpl/suggest-default-for-params": true,
+            "advpl/require-explicit-private": true,
+            "advpl/include-replace": true
+          },
+          "description": "Per-rule enable/disable map. Set a rule to false to silence it.",
+          "additionalProperties": {
+            "type": "boolean"
+          }
         }
       }
     },

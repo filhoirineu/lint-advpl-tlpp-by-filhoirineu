@@ -158,6 +158,7 @@ export function run(
         const abs = declStartAbs + (offsetInDecl >= 0 ? offsetInDecl : 0);
         // detect initializer on the declaration line (if any)
         let initVal: string | null = null;
+        const hasAsType = /\bAs\b\s+[A-Za-z_][A-Za-z0-9_]*/i.test(dm[0]);
         try {
           const lineText = dm[0];
           const initRe = new RegExp(
@@ -239,7 +240,8 @@ export function run(
         // specific initializer (for example 'a' => array should be initialized
         // with {}), report a single focused message about the missing
         // initializer rather than flagging type-name tokens.
-        if (!initVal && suggestInitializers) {
+        // if declaration explicitly includes `As <Type>`, skip suggesting initializer
+        if (!initVal && suggestInitializers && !hasAsType) {
           const prefix = id.replace(/^_+/, "")[0]?.toLowerCase() ?? "";
           const suggestMap: Record<string, string> = {
             a: ":= {}",

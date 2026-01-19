@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 This project follows the Keep a Changelog format and aims to use Semantic Versioning.
 
+## [0.0.6] - 2026-01-19
+
+Release preparing the extension package and polishing docs and rules.
+
+### Added
+
+- New rule `advpl/require-doc-header` to require `{Protheus.doc}` headers for functions/WS/WSMETHODs (configurable).
+- New rule `advpl/include-replace` to suggest replacing `protheus.ch` with `totvs.ch` in includes.
+
+### Changed
+
+- Project defaults and packaging preparation: bumped version to `0.0.6` and updated README for Marketplace readiness.
+- Added master switch `lint-advpl.enableRules` and per-rule toggles in `lint-advpl.rules` to allow fine-grained control.
+
+### Fixed
+
+- Further reduced false positives for `advpl/no-unused-local` and `advpl/hungarian-notation` with initializer and WSMETHOD heuristics.
+- Skipped doc-header checks for `WSMETHOD` inside `WSRESTFUL` blocks when configured.
+
 ## [0.0.5] - 2026-01-17
 
 Small release with heuristics improvements, new initializer suggestions and better WSMETHOD handling.
