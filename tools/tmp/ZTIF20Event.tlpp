@@ -1,0 +1,9 @@
+Class ZTIF20Event FROM FWModelEvent
+
+	public Data cMotivoInativacao as character
+
+	public method New()
+	public method GridLinePreVld()
+	public method FieldPreVld()
+
+End Class

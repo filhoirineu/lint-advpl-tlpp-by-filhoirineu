@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TLPP",
   "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",

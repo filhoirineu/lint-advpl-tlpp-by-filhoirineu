@@ -18,11 +18,13 @@
 Identifica variáveis declaradas como `Local`, `Private`, `Static` ou `Default` que não são usadas em nenhum lugar do bloco de código.
 
 **Heurísticas aplicadas:**
+
 - Reconhece usos dentro de strings e inicializadores (p. ex.: `cMsg := "var=" + varName`).
 - Ignora `Private` declaradas globalmente no arquivo (detecta em toda a fonte).
 - Reconhece inicializadores em classe `Data` (atributos públicos/privados em classes).
 
 **Exemplo:**
+
 ```advpl
 Local lReti := .T.    // ⚠️ Se lReti nunca for usada, será reportada
 Local cMsg As Char    // ✅ Se usada em return ou log, passa
@@ -33,11 +35,13 @@ Local cMsg As Char    // ✅ Se usada em return ou log, passa
 Detecta quando uma variável recebe um valor (atribuição `:=`, `+=`, `-=`, etc.) sem ser declarada como `Local`, `Private`, ou `Static`.
 
 **Heurísticas:**
+
 - Ignora propriedades de objetos (ex.: `obj:campo := valor`).
 - Ignora atributos qualificados com `::` ou `Self:`.
 - Respeita declarações `Private` globais no arquivo.
 
 **Exemplo:**
+
 ```advpl
 oBody := JsonObject():New()  // ⚠️ Sem Local oBody — reporta require-local
 Local oBody As Object
@@ -50,22 +54,24 @@ Verifica se as variáveis seguem a convenção de notação húngara (prefixo mi
 
 **Prefixos e inicializadores sugeridos:**
 
-| Prefixo | Tipo       | Inicializador sugerido |
-|---------|------------|---------------------------|
-| `a`     | Array      | `:= {}`                   |
-| `c`, `s` | Char/String | `:= ""`                   |
-| `n`     | Numeric    | `:= 0`                    |
-| `l`     | Logical    | `:= .F.`                  |
-| `o`, `j`, `u`, `x` | Object | `:= Nil`                  |
-| `b`     | Block/Code | `:= {||}`                 |
+| Prefixo            | Tipo        | Inicializador sugerido |
+| ------------------ | ----------- | ---------------------- | --- | --- |
+| `a`                | Array       | `:= {}`                |
+| `c`, `s`           | Char/String | `:= ""`                |
+| `n`                | Numeric     | `:= 0`                 |
+| `l`                | Logical     | `:= .F.`               |
+| `o`, `j`, `u`, `x` | Object      | `:= Nil`               |
+| `b`                | Block/Code  | `:= {                  |     | }`  |
 
 **Heurísticas aplicadas:**
+
 - Ignora variáveis inicializadas a partir de outras variáveis (p. ex.: `Local x := y`).
 - Ignora chamadas de função/método (p. ex.: `Local x := GetValue()`).
 - Aceita inicializadores por concatenação (p. ex.: `cFile := "path_" + cName + ".txt"`).
 - **Nova:** Não sugere inicializadores se a declaração já inclui `As <Type>` (p. ex.: `Local nCode As Numeric`).
 
 **Exemplo:**
+
 ```advpl
 Local aItems         // ⚠️ Prefixo 'a' sem inicializador — sugere `:= {}`
 Local aItems := {}   // ✅ Correto
@@ -77,10 +83,12 @@ Local nCode As Numeric  // ✅ Tipo explícito, sem sugestão
 Propõe adicionar a palavra-chave `Default` para parâmetros que frequentemente recebem valores padrão ou são opcionais.
 
 **Heurísticas:**
+
 - Ignora sugestões dentro de implementações `WSMETHOD` / `WSRESTFUL` (reduz falsos-positivos em endpoints).
 - Análisa assinatura da função e padrões de uso.
 
 **Exemplo:**
+
 ```advpl
 Function MyFunc(cName, cEmail)
   // ⚠️ Se cEmail é frequentemente omitido em chamadas, sugere:
@@ -92,6 +100,7 @@ Function MyFunc(cName, cEmail Default "")
 Detecta o uso de `SetPrvt()` e propõe substituir por declaração explícita `Private` na cabeçalho da função.
 
 **Exemplo:**
+
 ```advpl
 // ⚠️ Estilo antigo:
 SetPrvt("cMinho")
@@ -107,6 +116,7 @@ Private aLista := {}
 Verifica se funções, métodos, WebServices e classes possuem um cabeçalho de documentação Protheus.doc com nome, descrição e metadados.
 
 **Formato esperado:**
+
 ```advpl
 //--------------------------------------------------
 /*/{Protheus.doc} nomeFunction
@@ -122,11 +132,13 @@ EndFunction
 ```
 
 **Heurísticas:**
+
 - **Nova:** Valida se o nome após `{Protheus.doc}` corresponde ao nome real da função/método.
 - Ignora `WSMETHOD` declaradas dentro de blocos `WSRESTFUL ... END WSRESTFUL` (não precisam de cabeçalho individual).
 - Não reporta o token de fechamento `END WSRESTFUL`.
 
 **Exemplo (padrão):**
+
 ```advpl
 // ⚠️ Incompleto:
 /*/{Protheus.doc} paoDeBatata
@@ -147,6 +159,7 @@ User Function paoDeBatata()
 Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include moderno).
 
 **Exemplo:**
+
 ```advpl
 // ⚠️ Include legado:
 #include "protheus.ch"
@@ -164,11 +177,11 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 
 ### 📌 Comandos Disponíveis
 
-| Comando              | Ação                                                   |
-| -------------------- | ------------------------------------------------------ |
-| `LINT ADVPL: Analisar arquivo atual` | Força reanálise do arquivo ativo |
+| Comando                              | Ação                                     |
+| ------------------------------------ | ---------------------------------------- |
+| `LINT ADVPL: Analisar arquivo atual` | Força reanálise do arquivo ativo         |
 | `LINT ADVPL: Exportar relatório TXT` | Gera TXT com todos os issues e sugestões |
-| `LINT ADVPL: Open Sidebar` | Abre/foca a aba lateral **LINT** |
+| `LINT ADVPL: Open Sidebar`           | Abre/foca a aba lateral **LINT**         |
 
 ### 🎨 Painel Lateral (Sidebar)
 
@@ -181,21 +194,22 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 
 ### Opções Gerais
 
-| Configuração | Tipo | Padrão | Descrição |
-|---|---|---|---|
-| `lint-advpl.showInProblems` | boolean | `true` | Publica issues no painel Problems do VS Code |
-| `lint-advpl.editorUnderline` | boolean | `false` | Mostra squiggles/sublinhados no editor; false = apenas Problems |
-| `lint-advpl.ignoredNames` | array | `["aRotina", "cCadastro", "INCLUI", "ALTERA"]` | Nomes a ignorar em todos as regras (case-insensitive) |
-| `lint-advpl.hungarianSuggestInitializers` | boolean | `true` | Sugere inicializadores baseado em prefixo húngaro |
-| `lint-advpl.hungarianIgnoreAsType` | boolean | `true` | Não sugere inicializadores se `As <Type>` está presente |
-| `lint-advpl.requireDocHeaderRequireName` | boolean | `true` | Exige `{Protheus.doc} <nome>` no cabeçalho |
-| `lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful` | boolean | `true` | Ignora WSMETHOD dentro de WSRESTFUL para doc-header |
-| `lint-advpl.enableRules` | boolean | `true` | Master switch — ativa/desativa todas as regras |
-| `lint-advpl.rules` | object | (todas `true`) | Ativa/desativa regras individuais |
+| Configuração                                           | Tipo    | Padrão                                         | Descrição                                                       |
+| ------------------------------------------------------ | ------- | ---------------------------------------------- | --------------------------------------------------------------- |
+| `lint-advpl.showInProblems`                            | boolean | `true`                                         | Publica issues no painel Problems do VS Code                    |
+| `lint-advpl.editorUnderline`                           | boolean | `false`                                        | Mostra squiggles/sublinhados no editor; false = apenas Problems |
+| `lint-advpl.ignoredNames`                              | array   | `["aRotina", "cCadastro", "INCLUI", "ALTERA"]` | Nomes a ignorar em todos as regras (case-insensitive)           |
+| `lint-advpl.hungarianSuggestInitializers`              | boolean | `true`                                         | Sugere inicializadores baseado em prefixo húngaro               |
+| `lint-advpl.hungarianIgnoreAsType`                     | boolean | `true`                                         | Não sugere inicializadores se `As <Type>` está presente         |
+| `lint-advpl.requireDocHeaderRequireName`               | boolean | `true`                                         | Exige `{Protheus.doc} <nome>` no cabeçalho                      |
+| `lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful` | boolean | `true`                                         | Ignora WSMETHOD dentro de WSRESTFUL para doc-header             |
+| `lint-advpl.enableRules`                               | boolean | `true`                                         | Master switch — ativa/desativa todas as regras                  |
+| `lint-advpl.rules`                                     | object  | (todas `true`)                                 | Ativa/desativa regras individuais                               |
 
 ### Exemplo de `settings.json` (workspace)
 
 **Configuração básica:**
+
 ```json
 {
   "lint-advpl.ignoredNames": ["aRotina", "cCadastro", "INCLUI", "ALTERA"],
@@ -205,6 +219,7 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 ```
 
 **Configuração avançada (com heurísticas e toggles por-regra):**
+
 ```json
 {
   "lint-advpl.ignoredNames": ["aRotina", "cCadastro", "INCLUI", "ALTERA"],
@@ -228,11 +243,12 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 ```
 
 **Desabilitar regras específicas:**
+
 ```json
 {
   "lint-advpl.rules": {
-    "advpl/hungarian-notation": false,  // Desativa sugestões de notação
-    "advpl/require-doc-header": false   // Desativa verificação de cabeçalho
+    "advpl/hungarian-notation": false, // Desativa sugestões de notação
+    "advpl/require-doc-header": false // Desativa verificação de cabeçalho
   }
 }
 ```
@@ -273,6 +289,7 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 ## Desenvolvimento
 
 ### Setup local
+
 ```bash
 # Clone o repositório
 git clone https://github.com/filhoirineu/lint-advpl-tlpp-by-filhoirineu
@@ -289,6 +306,7 @@ npm run watch
 ```
 
 ### Testes
+
 ```bash
 # Executar analyzer em arquivo específico
 node tools/runFileTest.js fontestotvs/pcp/ws/ZPCPW30.prw
@@ -297,6 +315,7 @@ node tools/runFileTest.js fontestotvs/pcp/ws/ZPCPW30.prw
 ```
 
 ### Publicação
+
 ```bash
 # Antes de publicar, atualize a versão em package.json
 # Então compile e empacote:
@@ -309,14 +328,16 @@ npx vsce publish
 
 ## 📊 Histórico de Versões
 
-### Versão 0.0.5 (atual)
-- ✨ Nova regra `advpl/require-doc-header` com validação de nome
-- ✨ Nova regra `advpl/include-replace` para sugerir modernização de includes
-- 🎯 Melhorias em WSMETHOD/WSRESTFUL parsing e detecção de contexto
-- ⚙️ Opções configuráveis granulares (hungarianIgnoreAsType, requireDocHeaderRequireName, etc.)
-- 🐛 Reduções significativas de falsos-positivos
+### Versão 0.0.7 (atual)
+
+- ✨ Ajustes na regra `advpl/require-doc-header` para validação mais precisa
+- ✨ Métodos declarados dentro de `Class ... End Class` não exigem cabeçalho individual; implementações (`Method ... Class ...`) continuam exigindo `{Protheus.doc} <MethodName>`
+- 🔧 Não aceitar mais o nome da classe como substituto do cabeçalho do construtor — apenas `{Protheus.doc} New` é válido para `Method New()`
+- 🎯 Melhorias na detecção de blocos `Class` e `WSRESTFUL` para reduzir falsos-positivos
+- 🐛 Correções de diagnóstico e remoção de logs de depuração temporários
 
 ### Versão 0.0.4 e anteriores
+
 - Regras básicas: no-unused-local, require-local, hungarian-notation, suggest-default-for-params, require-explicit-private
 - Painel lateral com Tree view
 - Exportação para TXT
@@ -324,11 +345,13 @@ npx vsce publish
 ## 🤝 Contribuições
 
 Contribuições são bem-vindas! Abra um **Issue** ou **Pull Request** para:
+
 - Reportar bugs ou falsos-positivos
 - Sugerir novas regras ou melhorias nas existentes
 - Melhorar documentação e exemplos
 
 **Antes de submeter:**
+
 1. Faça fork do repositório
 2. Crie uma branch para sua feature (`git checkout -b feature/minha-feature`)
 3. Commit suas mudanças (`git commit -m 'Adiciona minha feature'`)
@@ -348,4 +371,4 @@ Este projeto é licenciado sob **GPL-3.0** — veja [LICENSE](LICENSE) para deta
 
 **Desenvolvido com ❤️ por [@filhoirineu](https://github.com/filhoirineu)**
 
-Versão atual: **0.0.5** | Última atualização: **19 de janeiro de 2026**
+Versão atual: **0.0.7** | Última atualização: **19 de janeiro de 2026**

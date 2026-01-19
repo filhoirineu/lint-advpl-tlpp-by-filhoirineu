@@ -47,6 +47,25 @@ Small release with heuristics improvements, new initializer suggestions and bett
 
 Work in progress: further tuning and documentation updates.
 
+## [0.0.7] - 2026-01-19
+
+Pequena release de correções e refinamento da regra de cabeçalho `{Protheus.doc}`.
+
+### Added
+
+- Ajustes de heurística na validação de cabeçalhos: métodos implementados com a sintaxe `Method <name>(...) Class <ClassName>` agora exigem cabeçalho explícito `{Protheus.doc} <MethodName>`.
+
+### Changed
+
+- Não aceitar mais o nome da `Class` como substituto do cabeçalho do construtor; somente `{Protheus.doc} New` é aceito para `Method New()`.
+- Métodos declarados dentro de um bloco `Class ... End Class` (assinaturas públicas/privadas) são ignorados pela checagem de cabeçalho — apenas implementações (`Method ... Class ...`) são validadas.
+- Melhorias na detecção de ranges `Class ... End Class` e `WSRESTFUL ... END WSRESTFUL` para reduzir falsos-positivos.
+
+### Fixed
+
+- Corrigidos casos em que um único cabeçalho de classe poderia satisfazer múltiplos métodos indevidamente.
+- Removidos logs de depuração deixados durante desenvolvimento.
+
 ## [0.0.2] - 2026-01-16
 
 ### Added
