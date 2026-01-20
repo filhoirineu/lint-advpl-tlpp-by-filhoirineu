@@ -57,13 +57,13 @@ Verifica se as variáveis seguem a convenção de notação húngara (prefixo mi
 **Prefixos e inicializadores sugeridos:**
 
 | Prefixo            | Tipo        | Inicializador sugerido |
-| ------------------ | ----------- | ---------------------- | --- | --- |
+| ------------------ | ----------- | ---------------------- |
 | `a`                | Array       | `:= {}`                |
 | `c`, `s`           | Char/String | `:= ""`                |
 | `n`                | Numeric     | `:= 0`                 |
 | `l`                | Logical     | `:= .F.`               |
 | `o`, `j`, `u`, `x` | Object      | `:= Nil`               |
-| `b`                | Block/Code  | `:= {                  |     | }`  |
+| `b`                | Block/Code  | `:= {\|\| }`           |
 
 **Heurísticas aplicadas:**
 
