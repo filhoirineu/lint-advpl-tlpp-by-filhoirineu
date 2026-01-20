@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TLPP",
   "description": "Lint offline para ADVPL/TLPP — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -36,6 +36,10 @@
       {
         "command": "lint-advpl.openView",
         "title": "LINT ADVPL: Open Sidebar"
+      },
+      {
+        "command": "lint-advpl.convertBeginSQL",
+        "title": "LINT ADVPL: Convert BeginSQL to concatenated query"
       }
     ],
     "viewsContainers": {
@@ -53,6 +57,15 @@
           "id": "lint-advpl.sidebar",
           "name": "Lint Results",
           "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "command": "lint-advpl.convertBeginSQL",
+          "when": "editorLangId == advpl",
+          "group": "navigation"
         }
       ]
     },
@@ -117,12 +130,25 @@
             "advpl/hungarian-notation": true,
             "advpl/suggest-default-for-params": true,
             "advpl/require-explicit-private": true,
-            "advpl/include-replace": true
+            "advpl/include-replace": true,
+            "advpl/use-crlf": true
           },
           "description": "Per-rule enable/disable map. Set a rule to false to silence it.",
           "additionalProperties": {
             "type": "boolean"
           }
+        },
+        "lint-advpl.database": {
+          "type": "string",
+          "default": "sqlserver",
+          "enum": [
+            "sqlserver",
+            "oracle",
+            "postgres",
+            "mysql",
+            "other"
+          ],
+          "description": "Database engine used by the project. When not 'sqlserver', usage of (NOLOCK) is reported as invalid."
         }
       }
     },

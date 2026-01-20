@@ -106,6 +106,154 @@ export function activate(context: vscode.ExtensionContext) {
     })
   );
 
+  // register convert BeginSQL block command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("lint-advpl.convertBeginSQL", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage("LINT: No active editor.");
+        return;
+      }
+      const doc = editor.document;
+      const full = doc.getText();
+      let selText = editor.document.getText(editor.selection);
+
+      // if nothing selected, try to find BeginSQL/EndSQL around cursor
+      if (!selText || !selText.trim()) {
+        const pos = editor.selection.active;
+        const offset = doc.offsetAt(pos);
+        const beginRe = /BeginSQL\b[\s\S]*?EndSQL\b/gi;
+        let match: RegExpExecArray | null = null;
+        while ((match = beginRe.exec(full))) {
+          const start = match.index;
+          const end = match.index + match[0].length;
+          if (offset >= start && offset <= end) {
+            selText = match[0];
+            break;
+          }
+        }
+      }
+
+      if (!selText || !/BeginSQL\b/i.test(selText)) {
+        vscode.window.showWarningMessage(
+          "LINT: Selecione um bloco BeginSQL...EndSQL."
+        );
+        return;
+      }
+
+      // strip BeginSQL ... line and EndSQL
+      const lines = selText.replace(/\r\n/g, "\n").split("\n");
+      // remove leading BeginSQL line
+      if (/^\s*BeginSQL\b/i.test(lines[0])) {
+        lines.shift();
+      }
+      // remove trailing EndSQL line if present
+      if (lines.length && /^\s*EndSQL\b/i.test(lines[lines.length - 1])) {
+        lines.pop();
+      }
+
+      // trim start/end blank lines
+      while (lines.length && lines[0].trim() === "") lines.shift();
+      while (lines.length && lines[lines.length - 1].trim() === "") lines.pop();
+
+      // build concatenated AdvPL string
+      const out: string[] = [];
+      out.push("cQuery := " + '""');
+      out.push("");
+      for (let i = 0; i < lines.length; i++) {
+        const raw = lines[i];
+        // skip blank lines (no need to emit empty cQuery += "" + CRLF)
+        if (raw.trim() === "") continue;
+        // replace tokens like %table:NAME%, %xFilial:NAME% and %notdel%
+        const tokenRe = /%([A-Za-z0-9_]+)(?::([A-Za-z0-9_]+))?%/gi;
+        let m: RegExpExecArray | null = null;
+        let lastIndex = 0;
+        let exprPieces: string[] = [];
+        while ((m = tokenRe.exec(raw))) {
+          const idx = m.index;
+          const token = m[1];
+          const param = m[2];
+          const literal = raw.slice(lastIndex, idx);
+          if (literal.length > 0) {
+            exprPieces.push('"' + literal.replace(/"/g, '\\"') + '"');
+          }
+          if (token.toLowerCase() === "table" && param) {
+            // if the table token is followed by an alias (e.g. "%table:Z43% Z43"),
+            // inject a " (NOLOCK)" after the alias unless NOLOCK already appears.
+            const tailStart = idx + m[0].length;
+            const after = raw.slice(tailStart);
+            const aliasMatch = after.match(/^\s*([A-Za-z0-9_]+)/);
+            if (aliasMatch) {
+              // check for existing NOLOCK in the next chars
+              const nextPart = after.slice(0, 80);
+              if (!/NOLOCK/i.test(nextPart)) {
+                exprPieces.push('RetSQLName("' + param + '")');
+                const aliasLiteral = aliasMatch[0] + " (NOLOCK)";
+                exprPieces.push('"' + aliasLiteral.replace(/"/g, '\\"') + '"');
+                // consume the alias characters so they are not added again as tail
+                lastIndex = tailStart + aliasMatch[0].length;
+                // advance the regex lastIndex to skip consumed alias
+                tokenRe.lastIndex = lastIndex;
+                continue;
+              }
+            }
+            exprPieces.push('RetSQLName("' + param + '")');
+          } else if (token.toLowerCase() === "xfilial" && param) {
+            exprPieces.push('xFilial("' + param + '")');
+          } else if (token.toLowerCase() === "notdel") {
+            exprPieces.push("\"D_E_L_E_T_ = ''\"");
+          } else if (token.toLowerCase() === "exp" && param) {
+            // %Exp:VAR% -> embed variable VAR (no quotes) into the concatenation
+            exprPieces.push(param);
+          } else {
+            // unknown token: keep as literal
+            exprPieces.push('"' + m[0].replace(/"/g, '\\"') + '"');
+          }
+          lastIndex = idx + m[0].length;
+        }
+        const tail = raw.slice(lastIndex);
+        if (exprPieces.length === 0) {
+          // no tokens, keep as simple quoted line
+          // add trailing space if line ends with an alphanumeric character
+          const rawTrim = raw;
+          const rawOut = /[A-Za-z0-9]$/.test(rawTrim.trim())
+            ? rawTrim + " "
+            : rawTrim;
+          out.push('cQuery += "' + rawOut.replace(/"/g, '\\"') + '" + CRLF');
+        } else {
+          if (tail.length > 0) {
+            exprPieces.push('"' + tail.replace(/"/g, '\\"') + '"');
+          }
+          // if all pieces are string literals, merge them into a single string
+          const allLiteral = exprPieces.every((p) => /^".*"$/.test(p));
+          if (allLiteral) {
+            let combined = exprPieces.map((p) => p.slice(1, -1)).join("");
+            // if combined ends with alphanumeric, append a space for readability (e.g. "WHERE" -> "WHERE ")
+            if (/[A-Za-z0-9]$/.test(combined.trim())) combined = combined + " ";
+            out.push(
+              'cQuery += "' + combined.replace(/"/g, '\\"') + '" + CRLF'
+            );
+          } else {
+            // join pieces with ' + '
+            out.push("cQuery += " + exprPieces.join(" + ") + " + CRLF");
+          }
+        }
+      }
+
+      const content = out.join("\n");
+
+      // open untitled document with the result (language advpl)
+      const docUntitled = await vscode.workspace.openTextDocument({
+        content,
+        language: "advpl",
+      });
+      await vscode.window.showTextDocument(docUntitled, { preview: false });
+      vscode.window.showInformationMessage(
+        "LINT: Converted BeginSQL block to concatenated query (untitled)."
+      );
+    })
+  );
+
   // register command to open a file at a given line/column from tree items
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -176,6 +324,65 @@ export function activate(context: vscode.ExtensionContext) {
         // silencioso
       }
     })
+  );
+
+  // CodeActionProvider: quick fix for advpl/no-with-nolock when DB = sqlserver
+  context.subscriptions.push(
+    vscode.languages.registerCodeActionsProvider(
+      { scheme: "file", language: "advpl" },
+      {
+        provideCodeActions(document, _range, context) {
+          const actions: vscode.CodeAction[] = [];
+          const cfg = vscode.workspace.getConfiguration("lint-advpl");
+          const database = (
+            cfg.get<string>("database", "sqlserver") || "sqlserver"
+          ).toLowerCase();
+          if (database !== "sqlserver") return actions;
+
+          for (const diag of context.diagnostics) {
+            const code = diag.code;
+            const codeStr =
+              typeof code === "string" ? code : String(code ?? "");
+            if (codeStr === "advpl/no-with-nolock") {
+              const title = "Replace WITH (NOLOCK) with (NOLOCK)";
+              const fix = new vscode.CodeAction(
+                title,
+                vscode.CodeActionKind.QuickFix
+              );
+              fix.diagnostics = [diag];
+              try {
+                const line = document.lineAt(diag.range.start.line).text;
+                const m = /\bWITH\s*\(\s*NOLOCK\s*\)/i.exec(line);
+                if (m) {
+                  const start = new vscode.Position(
+                    diag.range.start.line,
+                    m.index
+                  );
+                  const end = new vscode.Position(
+                    diag.range.start.line,
+                    m.index + m[0].length
+                  );
+                  const edit = new vscode.WorkspaceEdit();
+                  edit.replace(
+                    document.uri,
+                    new vscode.Range(start, end),
+                    "(NOLOCK)"
+                  );
+                  fix.edit = edit;
+                  fix.isPreferred = true;
+                  actions.push(fix);
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+          }
+
+          return actions;
+        },
+      },
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
+    )
   );
 
   // -------------------------
@@ -253,6 +460,7 @@ function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
       "requireDocHeaderIgnoreWsMethodInWsRestful",
       true
     );
+    const database = cfg.get<string>("database", "sqlserver");
 
     return analyzer.analyzeDocument(sourceText, fileName, {
       ignoredNames,

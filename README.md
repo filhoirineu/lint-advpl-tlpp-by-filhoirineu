@@ -2,6 +2,8 @@
 
 **Lint ADVPL/TLPP** é uma extensão para VS Code que oferece análise estática offline de código-fonte ADVPL/TLPP, identificando problemas comuns de escopo, nomenclatura, documentação e boas práticas — **sem necessidade de dependência do ambiente TOTVS**.
 
+**Versão:** 0.0.8
+
 ## 🎯 Visão Geral
 
 - ✅ **Análise em tempo real** — executa automaticamente ao abrir, editar ou salvar arquivos `.prw`, `.prx`, `.tlpp`.

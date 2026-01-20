@@ -6,6 +6,8 @@ import { run as runSuggestDefaultParams } from "./rules/advpl/suggest-default-pa
 import { run as runRequireExplicitPrivate } from "./rules/advpl/require-explicit-private";
 import { run as runIncludeReplace } from "./rules/advpl/include-replace";
 import { run as runRequireDocHeader } from "./rules/advpl/require-doc-header";
+import { run as runNoWithNoLock } from "./rules/advpl/no-with-nolock";
+import { run as runUseCrlf } from "./rules/advpl/use-crlf";
 
 export function analyzeDocument(
   sourceText: string,
@@ -16,6 +18,7 @@ export function analyzeDocument(
     hungarianIgnoreAsType?: boolean;
     requireDocHeaderRequireName?: boolean;
     requireDocHeaderIgnoreWsMethodInWsRestful?: boolean;
+    database?: string;
     enableRules?: boolean;
     enabledRules?: Record<string, boolean>;
   }
@@ -52,6 +55,14 @@ export function analyzeDocument(
   }
   if (masterEnabled && enabledRules["advpl/include-replace"] !== false) {
     issues.push(...runIncludeReplace(sourceText, fileName));
+  }
+  if (masterEnabled && enabledRules["advpl/no-with-nolock"] !== false) {
+    issues.push(
+      ...runNoWithNoLock(sourceText, fileName, { database: options?.database })
+    );
+  }
+  if (masterEnabled && enabledRules["advpl/use-crlf"] !== false) {
+    issues.push(...runUseCrlf(sourceText, fileName));
   }
 
   const summary = {

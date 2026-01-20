@@ -98,9 +98,10 @@ export function run(
     const prefix = sourceText.slice(0, idx);
     const declLine = prefix.split(/\r?\n/).length;
 
-    // inspect up to 12 lines before the declaration for a doc header
+    // inspect up to ~30 lines before the declaration for a doc header
+    // (expanded to allow longer description blocks with multiple Exp* lines)
     const allLines = sourceText.split(/\r?\n/);
-    const startLine = Math.max(0, declLine - 13);
+    const startLine = Math.max(0, declLine - 31);
     const contextLines = allLines.slice(startLine, declLine - 1);
     const contextText = contextLines.join("\n");
 
@@ -139,6 +140,27 @@ export function run(
     );
     if (headerNameMatch) {
       const headerName = headerNameMatch[1];
+      // extract header block text starting at Protheus.doc occurrence
+      const headerStartIdx = contextText.toLowerCase().indexOf("{protheus.doc");
+      const headerBlock =
+        headerStartIdx >= 0 ? contextText.slice(headerStartIdx) : contextText;
+
+      // find a longDescription: a non-empty line after the header line that does not start with '@' or comment markers
+      const hbLines = headerBlock
+        .split(/\r?\n/)
+        .map((l) => l.replace(/^[\s\*\/]+/, "").replace(/[\s\*\/]+$/, ""));
+      let hasLongDescription = false;
+      for (let i = 1; i < hbLines.length; i++) {
+        const ln = hbLines[i].trim();
+        if (!ln) continue;
+        if (ln.startsWith("@")) break;
+        // treat this as long description
+        hasLongDescription = true;
+        break;
+      }
+
+      const hasAuthor = /@author\b/i.test(headerBlock);
+      const hasSince = /@since\b/i.test(headerBlock);
       // If header near a class but names a method, ignore for class
       if (
         token.trim().toLowerCase() === "class" &&
@@ -170,6 +192,26 @@ export function run(
           functionName: name,
         });
         continue;
+      }
+
+      // if header names match, ensure minimal fields exist
+      if (headerName.toLowerCase() === name.toLowerCase()) {
+        const missing: string[] = [];
+        if (!hasLongDescription)
+          missing.push("descrição (linha abaixo do cabeçalho)");
+        if (!hasAuthor) missing.push("@author");
+        if (!hasSince) missing.push("@since");
+        if (missing.length > 0) {
+          issues.push({
+            ruleId: "advpl/require-doc-header",
+            severity: "warning",
+            line: declLine,
+            column: 1,
+            message: `${token.trim()} ${name} tem cabeçalho incompleto: faltando ${missing.join(", ")}.`,
+            functionName: name,
+          });
+          continue;
+        }
       }
     } else {
       // no nearby header

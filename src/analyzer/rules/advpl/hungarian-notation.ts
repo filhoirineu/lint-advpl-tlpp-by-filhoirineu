@@ -131,6 +131,8 @@ export function run(
     const funcCallRe = /^\s*[A-Za-z_][A-Za-z0-9_]*\s*\(/;
     const bareIdRe =
       /^\s*[A-Za-z_][A-Za-z0-9_]*(?:\s*(?:->|\.)\s*[A-Za-z_][A-Za-z0-9_]*)*\s*$/;
+    const arrayAccessRe =
+      /^\s*[A-Za-z_][A-Za-z0-9_]*(?:\s*\[\s*[^\]\r\n]+\s*\]\s*)+$/;
     const classQualifiedRe =
       /^\s*[A-Za-z_][A-Za-z0-9_]*\s*:\s*[A-Za-z_][A-Za-z0-9_]*\s*$/;
     const methodCallRe =
@@ -181,6 +183,7 @@ export function run(
           (funcCallRe.test(initVal) ||
             methodCallRe.test(initVal) ||
             bareIdRe.test(initVal) ||
+            arrayAccessRe.test(initVal) ||
             classQualifiedRe.test(initVal) ||
             /^\s*::\s*[A-Za-z_][A-Za-z0-9_]*\s*$/.test(initVal))
         ) {

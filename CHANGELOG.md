@@ -4,6 +4,32 @@ All notable changes to this project will be documented in this file.
 
 This project follows the Keep a Changelog format and aims to use Semantic Versioning.
 
+## [0.0.8] - 2026-01-20
+
+Bugfix release: relaxed doc-header and Hungarian notation heuristics to reduce false positives.
+
+### Changed
+
+- `advpl/require-doc-header`: expanded context window from 12 to 30 lines to allow longer documentation blocks with multiple `Exp*` parameter descriptions.
+- `advpl/hungarian-notation`: skip validation when initializer is an array access (e.g., `nVar := aArray[idx]`, `nVar := aArray[idx][1]`).
+
+## [0.0.7] - 2026-01-19
+
+Feature release: BeginSQL converter, NOLOCK handling, CRLF suggestions, and configurable database target.
+
+### Added
+
+- New command `lint-advpl.convertBeginSQL`: converts `BeginSQL...EndSQL` blocks to concatenated AdvPL query strings with token support (`%table%`, `%xFilial%`, `%notdel%`, `%Exp%`).
+- New rule `advpl/no-with-nolock`: detects `WITH (NOLOCK)` and suggests `(NOLOCK)` for SQL Server (configurable via `lint-advpl.database`).
+- New rule `advpl/use-crlf`: suggests using `CRLF` variable instead of `CHR(13) + CHR(10)` concatenation.
+- New configuration `lint-advpl.database` (default: `sqlserver`) to gate SQL Server-specific diagnostics and quick fixes.
+- CodeActionProvider for quick fixes on `advpl/no-with-nolock` (restricted to `database == sqlserver`).
+
+### Changed
+
+- BeginSQL converter: improved literal merging, skip blank lines, auto-insert `(NOLOCK)` after alias in `FROM`/`JOIN` when using `%table:NAME%`, and add trailing space to literals ending in alphanumeric.
+- Localized diagnostic messages for new rules to Portuguese.
+
 ## [0.0.6] - 2026-01-19
 
 Release preparing the extension package and polishing docs and rules.
