@@ -203,6 +203,7 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 | `lint-advpl.ignoredNames`                              | array   | `["aRotina", "cCadastro", "INCLUI", "ALTERA"]` | Nomes a ignorar em todos as regras (case-insensitive)           |
 | `lint-advpl.hungarianSuggestInitializers`              | boolean | `true`                                         | Sugere inicializadores baseado em prefixo húngaro               |
 | `lint-advpl.hungarianIgnoreAsType`                     | boolean | `true`                                         | Não sugere inicializadores se `As <Type>` está presente         |
+| `lint-advpl.database`                                  | string  | `sqlserver`                                    | Banco de dados do projeto; controla regras específicas (ex.: NOLOCK para `sqlserver`) |
 | `lint-advpl.requireDocHeaderRequireName`               | boolean | `true`                                         | Exige `{Protheus.doc} <nome>` no cabeçalho                      |
 | `lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful` | boolean | `true`                                         | Ignora WSMETHOD dentro de WSRESTFUL para doc-header             |
 | `lint-advpl.enableRules`                               | boolean | `true`                                         | Master switch — ativa/desativa todas as regras                  |
@@ -373,4 +374,4 @@ Este projeto é licenciado sob **GPL-3.0** — veja [LICENSE](LICENSE) para deta
 
 **Desenvolvido com ❤️ por [@filhoirineu](https://github.com/filhoirineu)**
 
-Versão atual: **0.0.7** | Última atualização: **19 de janeiro de 2026**
+Versão atual: **0.0.8** | Última atualização: **20 de janeiro de 2026**
