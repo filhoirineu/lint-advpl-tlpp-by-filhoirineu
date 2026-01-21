@@ -6,7 +6,7 @@ import { run as runSuggestDefaultParams } from "./rules/advpl/suggest-default-pa
 import { run as runRequireExplicitPrivate } from "./rules/advpl/require-explicit-private";
 import { run as runIncludeReplace } from "./rules/advpl/include-replace";
 import { run as runRequireDocHeader } from "./rules/advpl/require-doc-header";
-import { run as runNoWithNoLock } from "./rules/advpl/no-with-nolock";
+import { run as runRequireWithNoLock } from "./rules/advpl/require-with-nolock";
 import { run as runUseCrlf } from "./rules/advpl/use-crlf";
 
 export function analyzeDocument(
@@ -56,9 +56,11 @@ export function analyzeDocument(
   if (masterEnabled && enabledRules["advpl/include-replace"] !== false) {
     issues.push(...runIncludeReplace(sourceText, fileName));
   }
-  if (masterEnabled && enabledRules["advpl/no-with-nolock"] !== false) {
+  if (masterEnabled && enabledRules["advpl/require-with-nolock"] !== false) {
     issues.push(
-      ...runNoWithNoLock(sourceText, fileName, { database: options?.database })
+      ...runRequireWithNoLock(sourceText, fileName, {
+        database: options?.database,
+      })
     );
   }
   if (masterEnabled && enabledRules["advpl/use-crlf"] !== false) {

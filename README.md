@@ -1,8 +1,8 @@
-# LINT ADVPL/TLPP — Offline Static Analysis for AdvPL/TLPP
+# LINT ADVPL/TL++ — Offline Static Analysis for AdvPL/TL++
 
-**Lint ADVPL/TLPP** é uma extensão para VS Code que oferece análise estática offline de código-fonte ADVPL/TLPP, identificando problemas comuns de escopo, nomenclatura, documentação e boas práticas — **sem necessidade de dependência do ambiente TOTVS**.
+**Lint ADVPL/TL++** é uma extensão para VS Code que oferece análise estática offline de código-fonte ADVPL/TL++, identificando problemas comuns de escopo, nomenclatura, documentação e boas práticas — **sem necessidade de dependência do ambiente TOTVS**.
 
-**Versão:** 0.0.8
+**Versão:** 0.0.11
 
 ## 🎯 Visão Geral
 
@@ -172,7 +172,7 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 
 ## Como usar no VS Code
 
-1. Abra um arquivo ADVPL/TLPP (.prw, .prx, .tlpp etc.).
+1. Abra um arquivo ADVPL/TL++ (.prw, .prx, .tlpp etc.).
 2. A extensão roda automaticamente; o painel lateral **LINT** (aba de extensões) mostra resultados em tempo real.
 3. Clique em um issue para abri-lo no editor na linha específica.
 4. Use **Lint: Export TXT** para gerar relatório em TXT para compartilhamento.
@@ -196,18 +196,18 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
 
 ### Opções Gerais
 
-| Configuração                                           | Tipo    | Padrão                                         | Descrição                                                       |
-| ------------------------------------------------------ | ------- | ---------------------------------------------- | --------------------------------------------------------------- |
-| `lint-advpl.showInProblems`                            | boolean | `true`                                         | Publica issues no painel Problems do VS Code                    |
-| `lint-advpl.editorUnderline`                           | boolean | `false`                                        | Mostra squiggles/sublinhados no editor; false = apenas Problems |
-| `lint-advpl.ignoredNames`                              | array   | `["aRotina", "cCadastro", "INCLUI", "ALTERA"]` | Nomes a ignorar em todos as regras (case-insensitive)           |
-| `lint-advpl.hungarianSuggestInitializers`              | boolean | `true`                                         | Sugere inicializadores baseado em prefixo húngaro               |
-| `lint-advpl.hungarianIgnoreAsType`                     | boolean | `true`                                         | Não sugere inicializadores se `As <Type>` está presente         |
+| Configuração                                           | Tipo    | Padrão                                         | Descrição                                                                             |
+| ------------------------------------------------------ | ------- | ---------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `lint-advpl.showInProblems`                            | boolean | `true`                                         | Publica issues no painel Problems do VS Code                                          |
+| `lint-advpl.editorUnderline`                           | boolean | `false`                                        | Mostra squiggles/sublinhados no editor; false = apenas Problems                       |
+| `lint-advpl.ignoredNames`                              | array   | `["aRotina", "cCadastro", "INCLUI", "ALTERA"]` | Nomes a ignorar em todos as regras (case-insensitive)                                 |
+| `lint-advpl.hungarianSuggestInitializers`              | boolean | `true`                                         | Sugere inicializadores baseado em prefixo húngaro                                     |
+| `lint-advpl.hungarianIgnoreAsType`                     | boolean | `true`                                         | Não sugere inicializadores se `As <Type>` está presente                               |
 | `lint-advpl.database`                                  | string  | `sqlserver`                                    | Banco de dados do projeto; controla regras específicas (ex.: NOLOCK para `sqlserver`) |
-| `lint-advpl.requireDocHeaderRequireName`               | boolean | `true`                                         | Exige `{Protheus.doc} <nome>` no cabeçalho                      |
-| `lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful` | boolean | `true`                                         | Ignora WSMETHOD dentro de WSRESTFUL para doc-header             |
-| `lint-advpl.enableRules`                               | boolean | `true`                                         | Master switch — ativa/desativa todas as regras                  |
-| `lint-advpl.rules`                                     | object  | (todas `true`)                                 | Ativa/desativa regras individuais                               |
+| `lint-advpl.requireDocHeaderRequireName`               | boolean | `true`                                         | Exige `{Protheus.doc} <nome>` no cabeçalho                                            |
+| `lint-advpl.requireDocHeaderIgnoreWsMethodInWsRestful` | boolean | `true`                                         | Ignora WSMETHOD dentro de WSRESTFUL para doc-header                                   |
+| `lint-advpl.enableRules`                               | boolean | `true`                                         | Master switch — ativa/desativa todas as regras                                        |
+| `lint-advpl.rules`                                     | object  | (todas `true`)                                 | Ativa/desativa regras individuais                                                     |
 
 ### Exemplo de `settings.json` (workspace)
 
@@ -240,7 +240,9 @@ Propõe atualizar `#include "protheus.ch"` para `#include "totvs.ch"` (include m
     "advpl/hungarian-notation": true,
     "advpl/suggest-default-for-params": true,
     "advpl/require-explicit-private": true,
-    "advpl/include-replace": true
+    "advpl/include-replace": true,
+    "advpl/require-with-nolock": true,
+    "advpl/use-crlf": true
   }
 }
 ```
@@ -320,24 +322,40 @@ node tools/runFileTest.js fontestotvs/pcp/ws/ZPCPW30.prw
 ### Publicação
 
 ```bash
-# Antes de publicar, atualize a versão em package.json
-# Então compile e empacote:
+# Antes de publicar, verifique a versão em package.json (deve ser 0.0.11)
 npm run compile
-npx vsce package --out lint-advpl-tlpp-X.X.X.vsix
 
-# Para publicar no Marketplace VS Code:
-npx vsce publish
+# Gerar o VSIX com nome contendo a versão:
+npx vsce package --out lint-advpl-tlpp-0.0.11.vsix
+
+# Publicar no Marketplace (requer Personal Access Token ou login do publisher):
+# usando token em variável de ambiente (recomendado ao CI):
+npx vsce publish --pat $VSCE_TOKEN
+
+# Ou faça login interativo e publique:
+# npx vsce login filhoirineu
+# npx vsce publish
 ```
 
 ## 📊 Histórico de Versões
 
-### Versão 0.0.7 (atual)
+### Versão 0.0.11 (atual) — 2026-01-21
+
+- ✨ Conversores bidirecionais entre SQL e ADVPL/TL++:
+  - `BeginSQL → ADVPL/TL++` (in-place): converte `BeginSQL...EndSQL` em `cQuery` concatenado com tokens.
+  - `SQL → ADVPL/TL++` (seleção): converte seleção SQL em `cQuery`, preservando linhas em branco e normalizando `NOLOCK` para `WITH(NOLOCK)`.
+  - `ADVPL/TL++ → SQL`: reconstrói SQL legível a partir de `cQuery` e copia o resultado para a área de transferência (não altera o arquivo quando a seleção é `cQuery`).
+
+- 🛠️ Melhorias e correções de robustez:
+  - Aceita variações de helpers `Ret*Name(...)` (por exemplo `RetSqlName`, `RetSlqName`) e aplica sufixo de empresa configurável via `lint-advpl.databaseCompany`.
+  - Remoção de tokens de parsing (`%noparser%`, `%Exp:%`, `%notdel%`) durante conversões quando aplicável.
+  - Preservação de alias e `WITH(NOLOCK)` após tokens de nome de tabela em `FROM`/`JOIN`.
+  - Evita duplicação de aspas em placeholders e preserva literais `''` corretamente.
+
+### Versão 0.0.7
 
 - ✨ Ajustes na regra `advpl/require-doc-header` para validação mais precisa
-- ✨ Métodos declarados dentro de `Class ... End Class` não exigem cabeçalho individual; implementações (`Method ... Class ...`) continuam exigindo `{Protheus.doc} <MethodName>`
-- 🔧 Não aceitar mais o nome da classe como substituto do cabeçalho do construtor — apenas `{Protheus.doc} New` é válido para `Method New()`
 - 🎯 Melhorias na detecção de blocos `Class` e `WSRESTFUL` para reduzir falsos-positivos
-- 🐛 Correções de diagnóstico e remoção de logs de depuração temporários
 
 ### Versão 0.0.4 e anteriores
 
@@ -374,4 +392,4 @@ Este projeto é licenciado sob **GPL-3.0** — veja [LICENSE](LICENSE) para deta
 
 **Desenvolvido com ❤️ por [@filhoirineu](https://github.com/filhoirineu)**
 
-Versão atual: **0.0.8** | Última atualização: **20 de janeiro de 2026**
+Versão atual: **0.0.11** | Última atualização: **21 de janeiro de 2026**

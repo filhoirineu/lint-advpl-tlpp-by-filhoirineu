@@ -283,8 +283,8 @@ export class LintTreeProvider implements vscode.TreeDataProvider<LintTreeItem> {
           ? sev === "error"
             ? vscode.DiagnosticSeverity.Error
             : sev === "warning"
-            ? vscode.DiagnosticSeverity.Warning
-            : vscode.DiagnosticSeverity.Information
+              ? vscode.DiagnosticSeverity.Warning
+              : vscode.DiagnosticSeverity.Information
           : vscode.DiagnosticSeverity.Information;
 
         const message = `${it.ruleId ?? ""}: ${it.message ?? ""}`;
@@ -313,7 +313,7 @@ export class LintTreeProvider implements vscode.TreeDataProvider<LintTreeItem> {
 
   public buildTxtReport(result: AnalysisResult): string {
     const lines: string[] = [];
-    lines.push("LINT ADVPL/TLPP - RELATÓRIO");
+    lines.push("LINT ADVPL/TL++ - RELATÓRIO");
     lines.push("============================================================");
     lines.push(`Arquivo: ${result.fileName}`);
     lines.push("");

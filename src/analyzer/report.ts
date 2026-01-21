@@ -64,8 +64,8 @@ function renderResultHtml(result: AnalysisResult): string {
 
       return `<div class="card">
         <div class="h">${escapeHtml(b.blockType)} ${escapeHtml(
-        b.blockName
-      )}</div>
+          b.blockName
+        )}</div>
         ${locals}
         ${defs}
       </div>`;
@@ -76,8 +76,8 @@ function renderResultHtml(result: AnalysisResult): string {
     <div class="h">Resumo</div>
     <div>Blocos com ocorrências: <b>${result.summary.blocksWithIssues}</b></div>
     <div>Locals: <b>${result.summary.localsCount}</b> | Defaults: <b>${
-    result.summary.defaultsCount
-  }</b></div>
+      result.summary.defaultsCount
+    }</b></div>
     <div class="muted">Arquivo: ${escapeHtml(result.fileName)}</div>
   </div>
   ${blocks || `<div class="muted">Nenhuma ocorrência encontrada.</div>`}`;
@@ -85,7 +85,7 @@ function renderResultHtml(result: AnalysisResult): string {
 
 export function renderTxtReport(result: AnalysisResult): string {
   const lines: string[] = [];
-  lines.push("LINT ADVPL/TLPP by @filhoirineu");
+  lines.push("LINT ADVPL/TL++ by @filhoirineu");
   lines.push(`Arquivo: ${result.fileName}`);
   lines.push(`Blocos com ocorrências: ${result.summary.blocksWithIssues}`);
   lines.push(
@@ -126,6 +126,6 @@ function escapeHtml(s: string): string {
         ">": "&gt;",
         '"': "&quot;",
         "'": "&#039;",
-      }[ch] as string)
+      })[ch] as string
   );
 }

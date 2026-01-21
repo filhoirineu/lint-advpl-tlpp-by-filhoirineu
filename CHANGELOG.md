@@ -20,10 +20,10 @@ Feature release: BeginSQL converter, NOLOCK handling, CRLF suggestions, and conf
 ### Added
 
 - New command `lint-advpl.convertBeginSQL`: converts `BeginSQL...EndSQL` blocks to concatenated AdvPL query strings with token support (`%table%`, `%xFilial%`, `%notdel%`, `%Exp%`).
-- New rule `advpl/no-with-nolock`: detects `WITH (NOLOCK)` and suggests `(NOLOCK)` for SQL Server (configurable via `lint-advpl.database`).
+- New rule `advpl/require-with-nolock`: detects `(NOLOCK)` without a preceding `WITH` and suggests `WITH(NOLOCK)` for SQL Server (configurable via `lint-advpl.database`).
 - New rule `advpl/use-crlf`: suggests using `CRLF` variable instead of `CHR(13) + CHR(10)` concatenation.
 - New configuration `lint-advpl.database` (default: `sqlserver`) to gate SQL Server-specific diagnostics and quick fixes.
-- CodeActionProvider for quick fixes on `advpl/no-with-nolock` (restricted to `database == sqlserver`).
+- CodeActionProvider for quick fixes on `advpl/require-with-nolock` (restricted to `database == sqlserver`).
 
 ### Changed
 
@@ -72,6 +72,33 @@ Small release with heuristics improvements, new initializer suggestions and bett
 ## [Unreleased]
 
 Work in progress: further tuning and documentation updates.
+
+## [0.0.11] - 2026-01-21
+
+Release: bidirectional SQL <-> ADVPL/TL++ converters, behaviour fixes and UX improvements.
+
+### Added
+
+- Commands to convert between SQL and ADVPL/TL++:
+  - `BeginSQL → ADVPL/TL++`: in-place conversion of `BeginSQL...EndSQL` blocks to concatenated AdvPL/TL++ `cQuery` strings with token support.
+  - `SQL → ADVPL/TL++`: converts selected SQL into a concatenated AdvPL/TL++ `cQuery` preserving blank lines and normalizing `NOLOCK` to `WITH(NOLOCK)`.
+  - `ADVPL/TL++ → SQL`: converts concatenated AdvPL/TL++ `cQuery` back to readable SQL and copies the result to the clipboard (does not edit the file when selection looks like `cQuery`).
+
+- A `lint-advpl.databaseCompany` setting (default `010`) to control the company suffix appended when mapping `Ret...Name('XXX')` → `XXX{company}` during ADVPL→SQL conversion.
+
+### Changed
+
+- Converter behaviour and robustness improvements:
+  - Drop parser tokens such as `%noparser%`, `%xFilial:NAME%`, `%Exp:VAR%` and `%notdel%` during conversion where appropriate.
+  - Accept multiple variants of the RetName helper (`RetSqlName`, `RetSlqName`, `RetSQLName`, etc.) when mapping table names.
+  - Preserve alias and `WITH(NOLOCK)` tokens that follow `Ret*Name(...)` tokens for both `FROM` and `JOIN` clauses.
+  - Improved literal merging and whitespace preservation (blank lines are preserved where possible).
+
+### Fixed
+
+- Post-processing fixes to avoid accidental quote duplication around variable placeholders and to preserve empty-string literals `''`.
+- Unwrap nested or escaped stringified `cQuery` selections when converting ADVPL→SQL.
+- Ensure ADVPL→SQL command copies to clipboard instead of editing the file when the selection is a concatenated `cQuery`.
 
 ## [0.0.7] - 2026-01-19
 
