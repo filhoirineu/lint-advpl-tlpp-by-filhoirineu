@@ -182,8 +182,57 @@ export function run(
       if (/\bself\b\s*:\s*$/i.test(beforeRaw)) continue;
       if (/::\s*$/.test(beforeRaw)) continue;
       if (/\bthis\b\s*:\s*$/i.test(beforeRaw)) continue;
-      // skip general object/property access like obj:prop (e.g. oItem:codigo)
-      if (/\b[A-Za-z_][A-Za-z0-9_]*\s*:\s*$/i.test(beforeRaw)) continue;
+      // skip general object/property access like obj:prop and indexed forms like obj:arr[1]:prop
+      if (/\b[A-Za-z_][A-Za-z0-9_]*(?:\s*\[[^\]]*\])*\s*:\s*$/i.test(beforeRaw))
+        continue;
+
+      const lineStart = sourceText.lastIndexOf("\n", absIdx) + 1;
+      const lineEnd = sourceText.indexOf("\n", absIdx);
+      const lineText = sourceText.slice(
+        lineStart,
+        lineEnd === -1 ? sourceText.length : lineEnd
+      );
+
+      // regex matches chains like id[:id[...]]+:=  (covers indexed access before colons)
+      const propAssignRe =
+        /(?:[A-Za-z_][A-Za-z0-9_]*(?:\s*\[[^\]]*\])?\s*:\s*)+[A-Za-z_][A-Za-z0-9_]*\s*(?::=|\+=|-=|\*=|\/=)/;
+      if (propAssignRe.test(lineText)) {
+        // when assignment is to an object attribute chain (oBrowse:...:cTitle := ...)
+        // the variable that should be checked is the base identifier (oBrowse)
+        const baseMatch = lineText.match(
+          /([A-Za-z_][A-Za-z0-9_]*)\s*(?:\[[^\]]*\])?\s*:/
+        );
+        if (baseMatch && baseMatch[1]) {
+          const baseId = baseMatch[1];
+          const baseKey = baseId.toLowerCase();
+          // if base object is declared, skip reporting
+          if (
+            locals.has(baseKey) ||
+            privates.has(baseKey) ||
+            statics.has(baseKey) ||
+            globalPrivates.has(baseKey) ||
+            classAttrs.has(baseKey)
+          ) {
+            continue;
+          }
+
+          // report issue for the base identifier instead of the attribute
+          const absBase = lineStart + lineText.indexOf(baseMatch[0]);
+          const prefixBase = sourceText.slice(0, absBase);
+          const lineBase = prefixBase.split(/\r?\n/).length;
+          const columnBase = (prefixBase.split(/\r?\n/).pop()?.length ?? 0) + 1;
+
+          issues.push({
+            ruleId: "advpl/require-local",
+            severity: "warning",
+            line: lineBase,
+            column: columnBase,
+            message: `Função: User ${cur.name} — Variável: "${baseId}" recebe valor mas não é declarada como Local.`,
+            functionName: cur.name,
+          });
+        }
+        continue;
+      }
 
       if (IGNORED_NAMES.has(id.toLowerCase())) continue;
 
@@ -210,6 +259,37 @@ export function run(
         line,
         column,
         message: `Função: User ${cur.name} — Variável: "${id}" recebe valor mas não é declarada como Local.`,
+        functionName: cur.name,
+      });
+    }
+
+    // detect Aadd(...) calls where the first argument is a variable that should be declared
+    const aaddRe = /\bAadd\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,/gi;
+    let am2: RegExpExecArray | null = null;
+    while ((am2 = aaddRe.exec(sanitized))) {
+      const id = am2[1];
+      if (IGNORED_NAMES.has(id.toLowerCase())) continue;
+      const key = id.toLowerCase();
+      if (
+        locals.has(key) ||
+        privates.has(key) ||
+        statics.has(key) ||
+        globalPrivates.has(key) ||
+        classAttrs.has(key)
+      )
+        continue;
+
+      const abs = cur.index + am2.index + am2[0].indexOf(id);
+      const prefix = sourceText.slice(0, abs);
+      const line = prefix.split(/\r?\n/).length;
+      const column = (prefix.split(/\r?\n/).pop()?.length ?? 0) + 1;
+
+      issues.push({
+        ruleId: "advpl/require-local",
+        severity: "warning",
+        line,
+        column,
+        message: `Função: User ${cur.name} — Variável: "${id}" usada em Aadd(...) mas não é declarada como Local.`,
         functionName: cur.name,
       });
     }

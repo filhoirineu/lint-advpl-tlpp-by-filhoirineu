@@ -8,6 +8,8 @@ import { run as runIncludeReplace } from "./rules/advpl/include-replace";
 import { run as runRequireDocHeader } from "./rules/advpl/require-doc-header";
 import { run as runRequireWithNoLock } from "./rules/advpl/require-with-nolock";
 import { run as runUseCrlf } from "./rules/advpl/use-crlf";
+import { run as runRequireFieldRef } from "./rules/advpl/require-field-reference";
+import { run as runRequireFieldTable } from "./rules/advpl/require-field-table";
 
 export function analyzeDocument(
   sourceText: string,
@@ -65,6 +67,15 @@ export function analyzeDocument(
   }
   if (masterEnabled && enabledRules["advpl/use-crlf"] !== false) {
     issues.push(...runUseCrlf(sourceText, fileName));
+  }
+  if (
+    masterEnabled &&
+    enabledRules["advpl/require-field-reference"] !== false
+  ) {
+    issues.push(...runRequireFieldRef(sourceText, fileName));
+  }
+  if (masterEnabled && enabledRules["advpl/require-field-table"] !== false) {
+    issues.push(...runRequireFieldTable(sourceText, fileName));
   }
 
   const summary = {

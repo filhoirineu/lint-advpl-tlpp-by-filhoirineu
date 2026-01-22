@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TL++",
   "description": "Lint offline para ADVPL/TL++ — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -21,31 +21,43 @@
     "commands": [
       {
         "command": "lint-advpl.analyze",
-        "title": "Analisar arquivo"
+        "title": "LINT ADVPL/TL++: Analisar arquivo"
       },
       {
         "command": "lint-advpl.exportTxt",
-        "title": "Exportar relatório (TXT)"
+        "title": "LINT ADVPL/TL++: Exportar relatório (TXT)"
       },
       {
         "command": "lint-advpl.openView",
-        "title": "Abrir painel LINT"
+        "title": "LINT ADVPL/TL++: Abrir painel LINT"
       },
       {
         "command": "lint-advpl.openConverterSettings",
-        "title": "Configurar conversores"
+        "title": "LINT ADVPL/TL++: Configurar conversores"
+      },
+      {
+        "command": "lint-advpl.sortVariables",
+        "title": "LINT ADVPL/TL++: Ordenar Variaveis"
       },
       {
         "command": "lint-advpl.convertBeginSQL",
-        "title": "BeginSQL → ADVPL/TL++"
+        "title": "LINT ADVPL/TL++: BeginSQL → ADVPL/TL++"
       },
       {
         "command": "lint-advpl.convertSelectionToQuery",
-        "title": "SQL → ADVPL/TL++"
+        "title": "LINT ADVPL/TL++: SQL → ADVPL/TL++"
       },
       {
         "command": "lint-advpl.convertAdvplToSql",
-        "title": "ADVPL/TL++ → SQL"
+        "title": "LINT ADVPL/TL++: ADVPL/TL++ → SQL"
+      },
+      {
+        "command": "lint-advpl.editDocHeaderTemplate",
+        "title": "LINT ADVPL/TL++: Editar template de cabeçalho"
+      },
+      {
+        "command": "lint-advpl.saveDocHeaderTemplate",
+        "title": "LINT ADVPL/TL++: Salvar template de cabeçalho"
       }
     ],
     "viewsContainers": {
@@ -81,6 +93,11 @@
         {
           "command": "lint-advpl.convertAdvplToSql",
           "when": "editorTextFocus && editorLangId == advpl",
+          "group": "converters"
+        },
+        {
+          "command": "lint-advpl.sortVariables",
+          "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
           "group": "converters"
         }
       ]
@@ -183,6 +200,16 @@
           "type": "string",
           "default": "010",
           "description": "Company suffix to append to table names when converting RetSQLName('XXX') -> XXX{company}"
+        },
+        "lint-advpl.docHeaderTemplate": {
+          "type": "string",
+          "default": "//--------------------------------------------------\\n/*/{Protheus.doc} ${FUNC_NAME}\\n${DESCRIPTION}\\n\\n@author ${AUTHOR}\\n@since ${DATE}\\n/*/\\n//--------------------------------------------------\\n",
+          "description": "Template usado pelo quick-fix para inserir cabeçalhos de documentação. Use ${FUNC_NAME}, ${DESCRIPTION}, ${AUTHOR}, ${DATE}, ${YEAR} como placeholders."
+        },
+        "lint-advpl.defaultAuthor": {
+          "type": "string",
+          "default": "",
+          "description": "Autor padrão usado no template de cabeçalho quando aplicável."
         }
       }
     }

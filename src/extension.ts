@@ -71,6 +71,191 @@ function upperCaseSqlKeywords(s: string): string {
   return s.replace(re, (m) => m.toUpperCase());
 }
 
+// Uppercase table and alias names in SQL-like fragments, but avoid touching quoted
+// string literals. This targets identifiers following FROM, JOIN, INTO, UPDATE, etc.,
+// and alias names after AS or direct aliasing.
+function uppercaseTableAndAliasNames(s: string): string {
+  if (!s) return s;
+  // split by single-quoted or double-quoted strings to avoid modifying literals
+  const parts: string[] = [];
+  let cur = "";
+  let inSingle = false;
+  let inDouble = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (!inDouble && ch === "'") {
+      inSingle = !inSingle;
+      cur += ch;
+      continue;
+    }
+    if (!inSingle && ch === '"') {
+      inDouble = !inDouble;
+      cur += ch;
+      continue;
+    }
+    cur += ch;
+  }
+  // simple tokenizer: process non-quoted segments via regex
+  // We'll replace occurrences like FROM <name>, JOIN <name>, INTO <name>, UPDATE <name>
+  // and alias occurrences ' AS alias' or direct alias after a table name.
+  const tokenRe =
+    /\b(FROM|JOIN|INTO|UPDATE|DELETE\s+FROM|INSERT\s+INTO)\b\s*([A-Za-z0-9_]+)/gi;
+  // Also handle AS alias and immediate aliasing: table_name alias
+  const asAliasRe = /\bAS\b\s+([A-Za-z0-9_]+)/gi;
+  const directAliasRe = /\b([A-Za-z0-9_]+)\b\s+([A-Za-z0-9_]+)\b/g;
+
+  // operate only on non-quoted segments
+  let out = "";
+  let idx = 0;
+  const segments: Array<{ text: string; quoted: boolean }> = [];
+  // split into quoted and non-quoted runs
+  let buffer = "";
+  inSingle = false;
+  inDouble = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    const isQuoteStart = (!inSingle && ch === '"') || (!inDouble && ch === "'");
+    if (ch === '"' || ch === "'") {
+      // flush buffer before entering quoted
+      if (buffer.length > 0) {
+        segments.push({ text: buffer, quoted: false });
+        buffer = "";
+      }
+      const quoteChar = ch;
+      let ran = ch;
+      i++;
+      while (i < s.length) {
+        ran += s[i];
+        if (s[i] === quoteChar) break;
+        i++;
+      }
+      segments.push({ text: ran, quoted: true });
+      continue;
+    }
+    buffer += ch;
+  }
+  if (buffer.length > 0) segments.push({ text: buffer, quoted: false });
+
+  for (const seg of segments) {
+    if (seg.quoted) {
+      out += seg.text;
+      continue;
+    }
+    let t = seg.text;
+    t = t.replace(tokenRe, (m, p1, p2) => {
+      return p1 + " " + p2.toUpperCase();
+    });
+    // uppercase aliases after AS
+    t = t.replace(asAliasRe, (m, a1) => {
+      return "AS " + a1.toUpperCase();
+    });
+    // attempt to uppercase direct aliasing patterns where it's likely a table followed by alias
+    t = t.replace(directAliasRe, (m, g1, g2) => {
+      // only uppercase the second group if the first looks like a table (all alpha-num and not a SQL keyword)
+      const kwRe =
+        /\b(SELECT|FROM|WHERE|JOIN|ON|GROUP|BY|ORDER|HAVING|AS|LEFT|RIGHT|INNER|OUTER|AND|OR|IN|VALUES|SET|INSERT|UPDATE|DELETE)\b/i;
+      if (!kwRe.test(g1)) {
+        return g1 + " " + g2.toUpperCase();
+      }
+      return m;
+    });
+    out += t;
+  }
+
+  return out;
+}
+
+// Uppercase occurrences of tabela->campo in AdvPL code, avoiding quoted strings
+// and comments. Works on a block of text and returns transformed text.
+function uppercaseAdvplTableFields(code: string): string {
+  let out = "";
+  let i = 0;
+  const N = code.length;
+  let inSingle = false;
+  let inDouble = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  while (i < N) {
+    const ch = code[i];
+    const next2 = code.substr(i, 2);
+
+    // handle end of line comment
+    if (inLineComment) {
+      out += ch;
+      if (ch === "\n") inLineComment = false;
+      i++;
+      continue;
+    }
+
+    // handle end of block comment
+    if (inBlockComment) {
+      if (next2 === "*/") {
+        out += next2;
+        inBlockComment = false;
+        i += 2;
+      } else {
+        out += ch;
+        i++;
+      }
+      continue;
+    }
+
+    // start of line or block comment
+    if (!inSingle && !inDouble && next2 === "//") {
+      inLineComment = true;
+      out += next2;
+      i += 2;
+      continue;
+    }
+    if (!inSingle && !inDouble && next2 === "/*") {
+      inBlockComment = true;
+      out += next2;
+      i += 2;
+      continue;
+    }
+
+    // handle quotes
+    if (!inDouble && ch === "'") {
+      inSingle = !inSingle;
+      out += ch;
+      i++;
+      continue;
+    }
+    if (!inSingle && ch === '"') {
+      inDouble = !inDouble;
+      out += ch;
+      i++;
+      continue;
+    }
+
+    // if not inside quotes or comments, try to match tabela->campo
+    if (!inSingle && !inDouble) {
+      const rem = code.slice(i);
+      const m =
+        /^([A-Za-z_][A-Za-z0-9_]*)\s*->\s*([A-Za-z_][A-Za-z0-9_]*)/.exec(rem);
+      if (m) {
+        const left = m[1].toUpperCase();
+        const right = m[2].toUpperCase();
+        // preserve original spacing around arrow
+        const arrowMatch =
+          /^([A-Za-z_][A-Za-z0-9_]*)(\s*->\s*)([A-Za-z_][A-Za-z0-9_]*)/.exec(
+            rem
+          );
+        const arrow = arrowMatch ? arrowMatch[2] : "->";
+        out += left + arrow + right;
+        i += m[0].length;
+        continue;
+      }
+    }
+
+    // default: copy char
+    out += ch;
+    i++;
+  }
+
+  return out;
+}
 function convertAdvplConcatToSql(input: string, companySuffix: string): string {
   const rawLines = input.replace(/\r\n/g, "\n").split("\n");
   const outLines: string[] = [];
@@ -149,6 +334,7 @@ function convertAdvplConcatToSql(input: string, companySuffix: string): string {
 
     built = built.replace(/^\s+/, "").replace(/\s+$/g, "");
     built = upperCaseSqlKeywords(built);
+    built = uppercaseTableAndAliasNames(built);
 
     outLines.push(built);
   }
@@ -292,6 +478,24 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
+  // command: insert a header snippet at given uri/position (used by quick-fix)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.insertDocHeaderSnippet",
+      async (uri: vscode.Uri, position: vscode.Position, snippet: string) => {
+        try {
+          const doc = await vscode.workspace.openTextDocument(uri);
+          const ed = await vscode.window.showTextDocument(doc, {
+            preview: false,
+          });
+          await ed.insertSnippet(new vscode.SnippetString(snippet), position);
+        } catch (e) {
+          // ignore
+        }
+      }
+    )
+  );
+
   // register analyze command
   context.subscriptions.push(
     vscode.commands.registerCommand("lint-advpl.analyze", async () => {
@@ -372,6 +576,221 @@ export function activate(context: vscode.ExtensionContext) {
             "LINT: Unable to open settings UI. Check 'lint-advpl.enableConvertSelection' in settings.json."
           );
         }
+      }
+    )
+  );
+
+  // command: open a temporary editor with the current doc header template for editing
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.editDocHeaderTemplate",
+      async () => {
+        try {
+          const cfg = vscode.workspace.getConfiguration("lint-advpl");
+          const tpl = cfg.get<string>("docHeaderTemplate") || "";
+          const doc = await vscode.workspace.openTextDocument({
+            content: tpl,
+            language: "text",
+          });
+          await vscode.window.showTextDocument(doc, { preview: false });
+          vscode.window.showInformationMessage(
+            "Edit the header template, then run 'Lint ADVPL: Save Doc Header Template' to apply."
+          );
+        } catch (e) {
+          vscode.window.showErrorMessage(
+            "LINT: Unable to open header template editor."
+          );
+        }
+      }
+    )
+  );
+
+  // command: save the active editor content as the doc header template in workspace settings
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.saveDocHeaderTemplate",
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          vscode.window.showWarningMessage(
+            "LINT: No active editor to read template from."
+          );
+          return;
+        }
+        const content = editor.document.getText();
+        try {
+          const cfg = vscode.workspace.getConfiguration("lint-advpl");
+          await cfg.update(
+            "docHeaderTemplate",
+            content,
+            vscode.ConfigurationTarget.Workspace
+          );
+          vscode.window.showInformationMessage(
+            "LINT: Header template saved to workspace settings."
+          );
+        } catch (e: any) {
+          vscode.window.showErrorMessage(
+            "LINT: Failed to save header template: " + (e?.message ?? String(e))
+          );
+        }
+      }
+    )
+  );
+
+  // register Sort Variables command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("lint-advpl.sortVariables", async () => {
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        vscode.window.showWarningMessage("LINT: No active editor.");
+        return;
+      }
+
+      const sel = editor.selection;
+      if (sel.isEmpty) {
+        vscode.window.showWarningMessage(
+          "LINT: Selecione as declarações a serem ordenadas."
+        );
+        return;
+      }
+
+      const doc = editor.document;
+      const text = doc.getText(sel);
+      if (!text.trim()) {
+        vscode.window.showWarningMessage("LINT: Seleção vazia.");
+        return;
+      }
+
+      // Process lines: for declaration lines (Local/Private/Static/Default)
+      // sort the declared identifiers alphabetically preserving initializers and types.
+      const lines = text.replace(/\r\n/g, "\n").split("\n");
+      const outLines: string[] = [];
+
+      // collect declaration line info
+      const declInfos: Array<{
+        orig: string;
+        indent: string;
+        keyword: string;
+        rest: string;
+        firstId: string | null;
+        comment: string;
+      }> = [];
+
+      for (const ln of lines) {
+        const m = /^(\s*)(Local|Private|Static|Default)\b(.*)$/i.exec(ln);
+        if (m) {
+          const indent = m[1] || "";
+          const keyword = m[2];
+          let rest = m[3] || "";
+          const commentMatch = rest.match(/(\/\/.*)$/);
+          const comment = commentMatch ? commentMatch[1] : "";
+          if (comment) rest = rest.slice(0, rest.length - comment.length);
+          const parts = rest
+            .split(",")
+            .map((p) => p.trim())
+            .filter(Boolean);
+          const first = parts.length
+            ? (parts[0].match(/^([A-Za-z_][A-Za-z0-9_]*)/)?.[1] ?? null)
+            : null;
+          declInfos.push({
+            orig: ln,
+            indent,
+            keyword,
+            rest,
+            firstId: first ? first.toLowerCase() : null,
+            comment,
+          });
+        }
+      }
+
+      let resultText: string;
+      if (declInfos.length > 0 && declInfos.length === lines.length) {
+        // all lines are declarations -> sort lines by their first identifier
+        declInfos.sort((a, b) => {
+          const A = a.firstId || "";
+          const B = b.firstId || "";
+          return A < B ? -1 : A > B ? 1 : 0;
+        });
+        const out = declInfos.map((d) => {
+          // reconstruct line preserving indent, keyword, original rest and comment
+          const trimmedRest = d.rest.trim();
+          return `${d.indent}${d.keyword} ${trimmedRest}${d.comment ? " " + d.comment : ""}`.replace(
+            /\s+$/,
+            ""
+          );
+        });
+        resultText = out.join(doc.eol === vscode.EndOfLine.LF ? "\n" : "\r\n");
+      } else {
+        // mixed content: sort identifiers inside each declaration line, keep others as-is
+        for (const ln of lines) {
+          const m = /^(\s*)(Local|Private|Static|Default)\b(.*)$/i.exec(ln);
+          if (m) {
+            const indent = m[1] || "";
+            const keyword = m[2];
+            let rest = m[3] || "";
+            const commentMatch = rest.match(/(\/\/.*)$/);
+            const comment = commentMatch ? commentMatch[1] : "";
+            if (comment) rest = rest.slice(0, rest.length - comment.length);
+            const parts = rest
+              .split(",")
+              .map((p) => p.trim())
+              .filter(Boolean);
+            const items = parts.map((part) => {
+              const idm = part.match(/^([A-Za-z_][A-Za-z0-9_]*)/);
+              const id = idm ? idm[1].toLowerCase() : part.toLowerCase();
+              return { id, part };
+            });
+            items.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+            const joined = items.map((it) => it.part).join(", ");
+            outLines.push(
+              `${indent}${keyword} ${joined}${comment ? " " + comment : ""}`
+            );
+          } else {
+            outLines.push(ln);
+          }
+        }
+        resultText = outLines.join(
+          doc.eol === vscode.EndOfLine.LF ? "\n" : "\r\n"
+        );
+      }
+
+      await editor.edit((eb) => {
+        eb.replace(sel, resultText);
+      });
+      vscode.window.showInformationMessage("LINT: Declarações ordenadas.");
+    })
+  );
+
+  // register command to uppercase AdvPL tabela->campo occurrences
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.uppercaseTableFields",
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          vscode.window.showWarningMessage("LINT: No active editor.");
+          return;
+        }
+
+        const sel = editor.selection;
+        const doc = editor.document;
+        let text = doc.getText(sel);
+        let rangeToReplace: vscode.Range = sel;
+        if (!text || !text.trim()) {
+          text = doc.getText();
+          rangeToReplace = new vscode.Range(
+            doc.positionAt(0),
+            doc.positionAt(doc.getText().length)
+          );
+        }
+
+        const transformed = uppercaseAdvplTableFields(text);
+        await editor.edit((eb) => {
+          eb.replace(rangeToReplace, transformed);
+        });
+        vscode.window.showInformationMessage(
+          "LINT: tabela->campo convertidos para MAIÚSCULAS."
+        );
       }
     )
   );
@@ -459,6 +878,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
             // uppercase common SQL keywords for consistency
             raw = upperCaseSqlKeywords(raw);
+            raw = uppercaseTableAndAliasNames(raw);
             // if the line is a %noparser% marker, drop it entirely
             if (raw.trim().toLowerCase() === "%noparser%") {
               continue;
@@ -573,13 +993,13 @@ export function activate(context: vscode.ExtensionContext) {
                 const m2 = fromJoinRe2.exec(trimmedLine);
                 if (m2 && m2[2] && m2[2].length === 6) {
                   const tbl = m2[2];
-                  const prefix = trimmedLine.slice(
-                    0,
-                    m2.index + m2[1].length + 1
+                  // compute actual start of table name to preserve any whitespace between FROM/JOIN and table
+                  const tblStart = trimmedLine.indexOf(
+                    tbl,
+                    m2.index + m2[1].length
                   );
-                  const after = trimmedLine.slice(
-                    m2.index + m2[1].length + 1 + tbl.length
-                  );
+                  const prefix = trimmedLine.slice(0, tblStart);
+                  const after = trimmedLine.slice(tblStart + tbl.length);
                   const first3 = tbl.slice(0, 3);
                   const leftLiteral = (" " + prefix).replace(/"/g, '\\"');
                   const rightLiteral = (after + " ").replace(/"/g, '\\"');
@@ -729,6 +1149,7 @@ export function activate(context: vscode.ExtensionContext) {
           }
           // uppercase common SQL keywords for consistency
           raw = upperCaseSqlKeywords(raw);
+          raw = uppercaseTableAndAliasNames(raw);
           if (raw.trim() === "") {
             // preserve blank lines from the selection as spacing in the output
             out.push("");
@@ -1026,6 +1447,148 @@ export function activate(context: vscode.ExtensionContext) {
                     document.uri,
                     new vscode.Range(start, end),
                     "WITH(NOLOCK)"
+                  );
+                  fix.edit = edit;
+                  fix.isPreferred = true;
+                  actions.push(fix);
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+            if (codeStr === "advpl/require-doc-header") {
+              const title = "Inserir cabeçalho de documentação";
+              const fix = new vscode.CodeAction(
+                title,
+                vscode.CodeActionKind.QuickFix
+              );
+              fix.diagnostics = [diag];
+              try {
+                const cfg = vscode.workspace.getConfiguration("lint-advpl");
+                const tpl =
+                  cfg.get<string>(
+                    "docHeaderTemplate",
+                    "//--------------------------------------------------\n/*/{Protheus.doc} ${FUNC_NAME}\n${DESCRIPTION}\n\n@author ${AUTHOR}\n@since ${DATE}\n/*/\n//--------------------------------------------------\n"
+                  ) || "";
+                const author = cfg.get<string>("defaultAuthor", "") || "";
+
+                // find function name near diagnostic line
+                const diagLine = diag.range.start.line;
+                let funcName = "";
+                for (
+                  let r = diagLine;
+                  r < Math.min(document.lineCount, diagLine + 8);
+                  r++
+                ) {
+                  const text = document.lineAt(r).text;
+                  const m =
+                    /\b(User\s*Function|Static\s*Function|Function|Method)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i.exec(
+                      text
+                    );
+                  if (m) {
+                    funcName = m[2];
+                    break;
+                  }
+                }
+                if (!funcName) {
+                  for (let r = diagLine; r >= Math.max(0, diagLine - 8); r--) {
+                    const text = document.lineAt(r).text;
+                    const m =
+                      /\b(User\s*Function|Static\s*Function|Function|Method)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i.exec(
+                        text
+                      );
+                    if (m) {
+                      funcName = m[2];
+                      break;
+                    }
+                  }
+                }
+
+                const date = new Date();
+                const dd = String(date.getDate()).padStart(2, "0");
+                const mm = String(date.getMonth() + 1).padStart(2, "0");
+                const yyyy = String(date.getFullYear());
+                const dateStr = `${dd}/${mm}/${yyyy}`;
+
+                // prepare snippet: fill known placeholders and convert DESCRIPTION/AUTHOR
+                let base = tpl
+                  .replace(/\$\{FUNC_NAME\}/g, funcName)
+                  .replace(/\$\{DATE\}/g, dateStr)
+                  .replace(/\$\{YEAR\}/g, yyyy);
+
+                const authorDefault = author || "Seu Nome";
+                // DESCRIPTION -> first tabstop, AUTHOR -> second tabstop (with default)
+                // keep other template content as-is
+                let snippet = base
+                  .replace(/\$\{DESCRIPTION\}/g, "${1:Descrição}")
+                  .replace(/\$\{AUTHOR\}/g, "${2:" + authorDefault + "}");
+
+                const insertAt = new vscode.Position(diag.range.start.line, 0);
+                // set command to insert snippet (WorkspaceEdit doesn't support snippets)
+                fix.command = {
+                  title,
+                  command: "lint-advpl.insertDocHeaderSnippet",
+                  arguments: [document.uri, insertAt, snippet],
+                };
+                fix.isPreferred = true;
+                actions.push(fix);
+              } catch (e) {
+                // ignore
+              }
+            }
+            if (codeStr === "advpl/require-field-reference") {
+              const title = "Uppercase field reference";
+              const fix = new vscode.CodeAction(
+                title,
+                vscode.CodeActionKind.QuickFix
+              );
+              fix.diagnostics = [diag];
+              try {
+                const lineText = document.lineAt(diag.range.start.line).text;
+                const qualPattern =
+                  /(\(?\s*[A-Za-z0-9_]+\s*\)?\s*->\s*([A-Za-z0-9_]+))/g;
+                let m2: RegExpExecArray | null = null;
+                let chosen: {
+                  start: number;
+                  end: number;
+                  whole: string;
+                  field: string;
+                } | null = null;
+                while ((m2 = qualPattern.exec(lineText))) {
+                  const start = m2.index;
+                  const end = start + (m2[1] || "").length;
+                  // prefer a match near the diagnostic column
+                  if (
+                    Math.abs(start - diag.range.start.character) <= 40 ||
+                    (!chosen &&
+                      Math.abs(end - diag.range.start.character) <= 40)
+                  ) {
+                    chosen = { start, end, whole: m2[1], field: m2[2] };
+                    break;
+                  }
+                  if (!chosen) {
+                    chosen = { start, end, whole: m2[1], field: m2[2] };
+                  }
+                }
+                if (chosen) {
+                  // uppercase only the field part, preserve table/parentheses/spaces
+                  const replacement = chosen.whole.replace(
+                    /(->\s*)([A-Za-z0-9_]+)/,
+                    (_all, p1, p2) => p1 + p2.toUpperCase()
+                  );
+                  const startPos = new vscode.Position(
+                    diag.range.start.line,
+                    chosen.start
+                  );
+                  const endPos = new vscode.Position(
+                    diag.range.start.line,
+                    chosen.end
+                  );
+                  const edit = new vscode.WorkspaceEdit();
+                  edit.replace(
+                    document.uri,
+                    new vscode.Range(startPos, endPos),
+                    replacement
                   );
                   fix.edit = edit;
                   fix.isPreferred = true;
