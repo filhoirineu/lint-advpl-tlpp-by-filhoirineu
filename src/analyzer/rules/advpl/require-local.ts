@@ -12,6 +12,12 @@ export function run(
   const IGNORED_NAMES = new Set(
     (options?.ignoredNames || []).map((s) => s.toLowerCase())
   );
+  const isIgnored = (name: string) => {
+    if (!name) return false;
+    if (IGNORED_NAMES.has(name.toLowerCase())) return true;
+    if (/^mv_par\d{2}$/i.test(name)) return true;
+    return false;
+  };
 
   // detect function-like blocks including User Function, Static Function,
   // Function, Method, WsMethod and WSRESTFUL; extract a sensible name for each
@@ -63,6 +69,22 @@ export function run(
       (s) => s.toLowerCase() !== "private"
     );
     for (const id of ids) globalPrivates.add(id.toLowerCase());
+  }
+
+  // collect Static declarations across the whole file (treat as declared)
+  // exclude Static Function declarations
+  const globalStatics = new Set<string>();
+  const staticGlobalRe = /^\s*Static\b([^\r\n]*)/gim;
+  let sg: RegExpExecArray | null = null;
+  while ((sg = staticGlobalRe.exec(sourceText))) {
+    const tail = sg[1] ?? "";
+    // ignore Static Function declarations
+    if (/^\s*Function\b/i.test(tail)) continue;
+    const declPart = tail.split(/[:=]/)[0];
+    const ids = (declPart.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []).filter(
+      (s) => s.toLowerCase() !== "static"
+    );
+    for (const id of ids) globalStatics.add(id.toLowerCase());
   }
 
   // collect class attribute declarations (tlpp classes: public Data <name> ...)
@@ -211,6 +233,7 @@ export function run(
             privates.has(baseKey) ||
             statics.has(baseKey) ||
             globalPrivates.has(baseKey) ||
+            globalStatics.has(baseKey) ||
             classAttrs.has(baseKey)
           ) {
             continue;
@@ -234,15 +257,16 @@ export function run(
         continue;
       }
 
-      if (IGNORED_NAMES.has(id.toLowerCase())) continue;
+      if (isIgnored(id)) continue;
 
       const key = id.toLowerCase();
-      // if declared as Local/Private/Static in this block or declared Private anywhere, skip
+      // if declared as Local/Private/Static in this block or declared Private/Static anywhere, skip
       if (
         locals.has(key) ||
         privates.has(key) ||
         statics.has(key) ||
         globalPrivates.has(key) ||
+        globalStatics.has(key) ||
         classAttrs.has(key)
       )
         continue;
@@ -263,6 +287,55 @@ export function run(
       });
     }
 
+    // detect auto-increment/decrement (nTeste++, nTeste--)
+    const incDecRe =
+      /(^|[^A-Za-z0-9_>])([A-Za-z_][A-Za-z0-9_]*)\s*(\+\+|--)(?![A-Za-z0-9_])/gim;
+    let im: RegExpExecArray | null = null;
+    while ((im = incDecRe.exec(masked))) {
+      const id = im[2];
+      const idx = im.index + im[1].length;
+      // skip object properties (->)
+      const prev2 = idx >= 2 ? masked.slice(idx - 2, idx) : "";
+      if (prev2 === "->") continue;
+
+      // check raw preceding text to ignore qualified like self:cAttr++ or ::cAttr++
+      const absIdx = cur.index + idx;
+      const beforeRaw = sourceText.slice(Math.max(0, absIdx - 8), absIdx);
+      if (/\bself\b\s*:\s*$/i.test(beforeRaw)) continue;
+      if (/::\s*$/.test(beforeRaw)) continue;
+      if (/\bthis\b\s*:\s*$/i.test(beforeRaw)) continue;
+      if (/\b[A-Za-z_][A-Za-z0-9_]*(?:\s*\[[^\]]*\])*\s*:\s*$/i.test(beforeRaw))
+        continue;
+
+      if (IGNORED_NAMES.has(id.toLowerCase())) continue;
+
+      const key = id.toLowerCase();
+      if (
+        locals.has(key) ||
+        privates.has(key) ||
+        statics.has(key) ||
+        globalPrivates.has(key) ||
+        globalStatics.has(key) ||
+        classAttrs.has(key)
+      )
+        continue;
+
+      // report issue
+      const abs = cur.index + idx;
+      const prefix = sourceText.slice(0, abs);
+      const line = prefix.split(/\r?\n/).length;
+      const column = (prefix.split(/\r?\n/).pop()?.length ?? 0) + 1;
+
+      issues.push({
+        ruleId: "advpl/require-local",
+        severity: "warning",
+        line,
+        column,
+        message: `Função: User ${cur.name} — Variável: "${id}" é auto-incrementada/decrementada mas não é declarada como Local.`,
+        functionName: cur.name,
+      });
+    }
+
     // detect Aadd(...) calls where the first argument is a variable that should be declared
     const aaddRe = /\bAadd\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,/gi;
     let am2: RegExpExecArray | null = null;
@@ -275,6 +348,7 @@ export function run(
         privates.has(key) ||
         statics.has(key) ||
         globalPrivates.has(key) ||
+        globalStatics.has(key) ||
         classAttrs.has(key)
       )
         continue;

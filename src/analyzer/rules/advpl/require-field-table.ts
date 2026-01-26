@@ -32,6 +32,9 @@ export function run(
     if (!fld.includes("_")) continue;
 
     const expectedPrefix = /^s/i.test(tbl) ? tbl.slice(1) : tbl;
+
+    // only validate when the table code (expected prefix) has length 3
+    if ((expectedPrefix || "").length !== 3) continue;
     const fldPrefix = fld.split("_")[0];
 
     if (fldPrefix.toUpperCase() !== expectedPrefix.toUpperCase()) {

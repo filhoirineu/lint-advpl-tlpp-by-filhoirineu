@@ -73,6 +73,7 @@ export function run(
     // helper to validate a name
     const checkName = (id: string, absPos: number) => {
       if (IGNORED_NAMES.has(id.toLowerCase())) return;
+      if (/^mv_par\d{2}$/i.test(id)) return;
       // skip empty
       if (!id) return;
       const key = id.toLowerCase();

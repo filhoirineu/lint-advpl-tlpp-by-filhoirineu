@@ -13,6 +13,12 @@ export function run(
   const fromOptions = (options && options.ignoredNames) || [];
   const merged = Array.from(new Set([...defaultIgnored, ...fromOptions]));
   const IGNORED_NAMES = new Set(merged.map((s) => s.toLowerCase()));
+  const isIgnored = (name: string) => {
+    if (!name) return false;
+    if (IGNORED_NAMES.has(name.toLowerCase())) return true;
+    if (/^mv_par\d{2}$/i.test(name)) return true;
+    return false;
+  };
 
   // detect class attribute declarations (tlpp): public Data <name> ...
   const classAttrRe =
@@ -81,7 +87,7 @@ export function run(
         (s) => s.toLowerCase() !== "local"
       );
       for (const id of ids) {
-        if (IGNORED_NAMES.has(id.toLowerCase())) continue;
+        if (isIgnored(id)) continue;
         // build word regex
         const key = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const usageRe = new RegExp("\\b" + key + "\\b", "i");

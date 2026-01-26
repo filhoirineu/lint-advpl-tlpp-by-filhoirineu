@@ -2,7 +2,22 @@
 
 **Lint ADVPL/TL++** é uma extensão para VS Code que oferece análise estática offline de código-fonte ADVPL/TL++, identificando problemas comuns de escopo, nomenclatura, documentação e boas práticas — **sem necessidade de dependência do ambiente TOTVS**.
 
-**Versão:** 0.0.12
+**Versão:** 2.0.0
+
+## Release v2.0.0 (26 de janeiro de 2026)
+
+- Major release: reorganização de comandos e melhorias de usabilidade.
+- Novo comando `lint-advpl.arrumar` (normaliza espaçamento de `:=` e `AS`).
+- Substituído `alignVariables` por `arrumar` e removidas referências antigas.
+- Correção: `ignoredFiles` agora é respeitado pela análise e há comandos para adicionar/remover/listar padrões.
+- Quick-fix para inserir cabeçalho de documentação (`lint-advpl.insertDocHeaderSnippet`) agora preserva quebras de linha.
+
+## 🆕 What's New (v1.0.0)
+
+- Adicionado suporte a `lint-advpl.ignoredFiles` para excluir arquivos inteiros da análise e comandos para adicionar/remover/listar ignorados via menu do editor/explorador.
+- Regras aprimoradas: ignoração de variáveis `MV_PAR00..MV_PAR99`, detecção de operadores `++/--` em `advpl/require-local` e correções de false-positives para declarações `Static`/`Private` em nível de arquivo.
+- Novos comandos de refatoração: `lint-advpl.sortVariables` e `lint-advpl.arrumar` (preservam indentação/seletor).
+- Melhoria na correspondência de padrões `ignoredFiles` (basename, sufixo de caminho e simples globs) para evitar exclusões acidentais.
 
 ## 🎯 Visão Geral
 

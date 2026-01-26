@@ -1,0 +1,53 @@
+//===================================================================
+// Arquivo de teste para validar correção da regra advpl/require-local
+// Problem: Static declarations at file level should be recognized
+//===================================================================
+
+// ? Static declaration at file level (GLOBAL)
+Static aINFOUSUARIO := {}
+Static cVALOR := ""
+Static nCONTADOR := 0
+
+User Function setInfoUsuario()
+	// aINFOUSUARIO é Static (declarada no nível de arquivo)
+	// Portanto, não deve reportar error quando usada em Aadd()
+
+	Aadd(aINFOUSUARIO, "item 1")    // ? ANTES: reportava erro - AGORA: OK!
+	Aadd(aINFOUSUARIO, "item 2")    // ? ANTES: reportava erro - AGORA: OK!
+
+	cVALOR := "teste"               // ? OK (Static global)
+	nCONTADOR += 1                  // ? OK (Static global)
+
+	// Variáveis locais ainda são obrigatórias
+	Local lRet := .T.
+	Local cMsg := ""
+
+	cMsg := "processado"            // ? OK (Local declarada)
+	aUndeclared := {}               // ?? Ainda reporta erro (não declarada)
+
+Return lRet
+	EndFunction
+
+User Function anotherFunc()
+	// aINFOUSUARIO ainda é Static global e acessível aqui
+	// Não deve reportar erro quando usada
+	Aadd(aINFOUSUARIO, "item 3")    // ? OK
+
+	// Mas variáveis não declaradas ainda devem reportar erro
+	aBadVariable := {}              // ?? Reporta erro (não declarada)
+
+Return .T.
+	EndFunction
+
+// PRIVATE declarations também são respeitadas em nível de arquivo
+	Private cPRIVATE_VAR := "test"
+
+User Function usarPrivate()
+	// cPRIVATE_VAR é Private global
+	cPRIVATE_VAR := "novo valor"    // ? OK
+
+	Local lLocal := .T.
+	lLocal := .F.                   // ? OK
+
+Return .T.
+	EndFunction

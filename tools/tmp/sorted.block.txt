@@ -1,0 +1,4 @@
+	Local cAtivo          as character
+	Local cQuery          as character
+	Local lAtivoInformacao as logical
+	Local nRegistros      as numeric

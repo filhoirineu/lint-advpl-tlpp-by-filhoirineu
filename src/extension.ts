@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as path from "path";
 // try both possible compiled analyzer locations (index.js or analyzer.js)
 let analyzer: any;
 try {
@@ -403,6 +404,7 @@ function postProcessSqlLines(sql: string, companySuffix: string): string {
 }
 import { AnalysisResult } from "./analyzer/types";
 import LintTreeProvider from "./sidebar/LintTreeProvider";
+import { registerArrumar } from "./commands/arrumar";
 
 let provider: LintTreeProvider | undefined;
 
@@ -484,6 +486,10 @@ export function activate(context: vscode.ExtensionContext) {
       "lint-advpl.insertDocHeaderSnippet",
       async (uri: vscode.Uri, position: vscode.Position, snippet: string) => {
         try {
+          // ensure any escaped newline sequences are converted to real newlines
+          if (typeof snippet === "string") {
+            snippet = snippet.replace(/\\r\\n/g, "\r\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+          }
           const doc = await vscode.workspace.openTextDocument(uri);
           const ed = await vscode.window.showTextDocument(doc, {
             preview: false,
@@ -578,6 +584,146 @@ export function activate(context: vscode.ExtensionContext) {
         }
       }
     )
+  );
+
+  // commands to manage ignored files setting
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.addIgnoredFile",
+      async (resource?: vscode.Uri | string) => {
+        try {
+          const cfg = vscode.workspace.getConfiguration("lint-advpl");
+          const current = (cfg.get<string[]>("ignoredFiles") || []).slice();
+
+          let toAdd: string | undefined;
+          if (resource) {
+            if (typeof resource === "string") {
+              toAdd = resource;
+            } else if ((resource as vscode.Uri).fsPath) {
+              const uri = resource as vscode.Uri;
+              const ws = vscode.workspace.getWorkspaceFolder(uri);
+              toAdd = ws
+                ? path.relative(ws.uri.fsPath, uri.fsPath).replace(/\\/g, "/")
+                : path.basename(uri.fsPath);
+            }
+          } else {
+            const editor = vscode.window.activeTextEditor;
+            if (editor) {
+              const uri = editor.document.uri;
+              const ws = vscode.workspace.getWorkspaceFolder(uri);
+              toAdd = ws
+                ? path.relative(ws.uri.fsPath, uri.fsPath).replace(/\\/g, "/")
+                : path.basename(uri.fsPath);
+            }
+          }
+
+          if (!toAdd) {
+            vscode.window.showWarningMessage(
+              "LINT: Nenhum arquivo selecionado para ignorar."
+            );
+            return;
+          }
+
+          if (current.includes(toAdd)) {
+            vscode.window.showInformationMessage(
+              "LINT: Arquivo já está em ignoredFiles."
+            );
+            return;
+          }
+
+          current.push(toAdd);
+          await cfg.update(
+            "ignoredFiles",
+            current,
+            vscode.ConfigurationTarget.Workspace
+          );
+          vscode.window.showInformationMessage(
+            `LINT: Adicionado '${toAdd}' a lint-advpl.ignoredFiles.`
+          );
+        } catch (e: any) {
+          vscode.window.showErrorMessage(
+            "LINT: Falha ao adicionar arquivo em ignoredFiles: " +
+              (e?.message ?? String(e))
+          );
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "lint-advpl.removeIgnoredFile",
+      async (resource?: vscode.Uri | string) => {
+        try {
+          const cfg = vscode.workspace.getConfiguration("lint-advpl");
+          const current = (cfg.get<string[]>("ignoredFiles") || []).slice();
+          if (!current.length) {
+            vscode.window.showInformationMessage(
+              "LINT: Nenhum arquivo em ignoredFiles."
+            );
+            return;
+          }
+
+          let toRemove: string | undefined;
+          if (resource) {
+            if (typeof resource === "string") toRemove = resource;
+            else if ((resource as vscode.Uri).fsPath) {
+              const uri = resource as vscode.Uri;
+              const ws = vscode.workspace.getWorkspaceFolder(uri);
+              toRemove = ws
+                ? path.relative(ws.uri.fsPath, uri.fsPath).replace(/\\/g, "/")
+                : path.basename(uri.fsPath);
+            }
+          }
+
+          if (!toRemove) {
+            // ask user which pattern to remove
+            const pick = await vscode.window.showQuickPick(current, {
+              placeHolder: "Select ignored pattern to remove",
+            });
+            if (!pick) return;
+            toRemove = pick;
+          }
+
+          const idx = current.indexOf(toRemove);
+          if (idx === -1) {
+            vscode.window.showInformationMessage(
+              "LINT: Padrão não encontrado em ignoredFiles."
+            );
+            return;
+          }
+          current.splice(idx, 1);
+          await cfg.update(
+            "ignoredFiles",
+            current,
+            vscode.ConfigurationTarget.Workspace
+          );
+          vscode.window.showInformationMessage(
+            `LINT: Removido '${toRemove}' de lint-advpl.ignoredFiles.`
+          );
+        } catch (e: any) {
+          vscode.window.showErrorMessage(
+            "LINT: Falha ao remover ignoredFiles: " + (e?.message ?? String(e))
+          );
+        }
+      }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("lint-advpl.showIgnoredFiles", async () => {
+      // open settings UI filtered to the ignoredFiles setting
+      try {
+        await vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "lint-advpl.ignoredFiles"
+        );
+      } catch (e) {
+        vscode.window.showInformationMessage(
+          "LINT: Unable to open settings for 'lint-advpl.ignoredFiles'."
+        );
+      }
+    })
   );
 
   // command: open a temporary editor with the current doc header template for editing
@@ -757,9 +903,22 @@ export function activate(context: vscode.ExtensionContext) {
       await editor.edit((eb) => {
         eb.replace(sel, resultText);
       });
-      vscode.window.showInformationMessage("LINT: Declarações ordenadas.");
+      // after sorting, also run the 'arrumar' command to normalize spacing around := and AS
+      try {
+        await vscode.commands.executeCommand("lint-advpl.arrumar");
+      } catch (e) {
+        // ignore if command invocation fails
+      }
     })
   );
+
+  // register ARRUMAR command (normalize spacing around AS and :=)
+  try {
+    registerArrumar(context);
+  } catch (e) {
+    // guard: non-fatal if registration fails
+    console.error("lint-advpl: failed to register arrumar command", e);
+  }
 
   // register command to uppercase AdvPL tabela->campo occurrences
   context.subscriptions.push(
@@ -1689,6 +1848,7 @@ function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
       true
     );
     const database = cfg.get<string>("database", "sqlserver");
+    const ignoredFiles = cfg.get<string[]>("ignoredFiles", []);
 
     return analyzer.analyzeDocument(sourceText, fileName, {
       ignoredNames,
@@ -1698,6 +1858,8 @@ function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
       requireDocHeaderIgnoreWsMethodInWsRestful,
       enableRules,
       enabledRules: rules,
+      database,
+      ignoredFiles,
     });
   } catch {
     return analyzer.analyzeDocument(sourceText, fileName);

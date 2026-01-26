@@ -72,7 +72,8 @@ export function run(
       .split(/\s*,\s*/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
-      .filter((s) => !IGNORED_NAMES.has(s.toLowerCase()));
+      .filter((s) => !IGNORED_NAMES.has(s.toLowerCase()))
+      .filter((s) => !/^mv_par\d{2}$/i.test(s));
 
     // Build grouped suggestions for all names in this SetPrvt call
     const decls: string[] = [];

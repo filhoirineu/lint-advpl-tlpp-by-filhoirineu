@@ -23,9 +23,93 @@ export function analyzeDocument(
     database?: string;
     enableRules?: boolean;
     enabledRules?: Record<string, boolean>;
+    ignoredFiles?: string[];
   }
 ): AnalysisResult {
   const issues: Issue[] = [];
+
+  // If the file is configured to be ignored, return an empty analysis result.
+  if (options?.ignoredFiles && options.ignoredFiles.length > 0) {
+    const fileLower = fileName.toLowerCase();
+    const fileNorm = fileLower.replace(/\\/g, "/");
+    const fileBase = fileNorm.split("/").pop() || fileNorm;
+    for (const pat of options.ignoredFiles) {
+      if (!pat) continue;
+      const p = pat.toLowerCase();
+      const pNorm = p.replace(/\\/g, "/");
+      try {
+        if (p.includes("*") || p.includes("?")) {
+          // convert simple glob to regex: escape regex-special chars, then
+          // convert '*' -> '.*' and '?' -> '.'; test against lowercased path
+          const escaped = pNorm.replace(/([.+^${}()|[\\]\\\\])/g, "\\$1");
+          const globRe =
+            "^" + escaped.replace(/\*/g, ".*").replace(/\?/g, ".") + "$";
+          const re = new RegExp(globRe, "i");
+          if (re.test(fileNorm) || re.test(fileBase))
+            return {
+              fileName,
+              blocks: [],
+              issues: [],
+              summary: {
+                blocksWithIssues: 0,
+                localsCount: 0,
+                defaultsCount: 0,
+                issuesCount: 0,
+              },
+            };
+        }
+
+        // match by basename or path-suffix (avoid matching arbitrary substrings)
+        if (fileBase === pNorm) {
+          return {
+            fileName,
+            blocks: [],
+            issues: [],
+            summary: {
+              blocksWithIssues: 0,
+              localsCount: 0,
+              defaultsCount: 0,
+              issuesCount: 0,
+            },
+          };
+        }
+
+        if (pNorm.includes("/")) {
+          // pattern contains path segments: match full normalized suffix or exact
+          if (fileNorm === pNorm || fileNorm.endsWith("/" + pNorm)) {
+            return {
+              fileName,
+              blocks: [],
+              issues: [],
+              summary: {
+                blocksWithIssues: 0,
+                localsCount: 0,
+                defaultsCount: 0,
+                issuesCount: 0,
+              },
+            };
+          }
+        } else {
+          // no path in pattern: match basename or filename suffix
+          if (fileNorm.endsWith("/" + pNorm) || fileLower.endsWith(p)) {
+            return {
+              fileName,
+              blocks: [],
+              issues: [],
+              summary: {
+                blocksWithIssues: 0,
+                localsCount: 0,
+                defaultsCount: 0,
+                issuesCount: 0,
+              },
+            };
+          }
+        }
+      } catch (e) {
+        // ignore bad pattern
+      }
+    }
+  }
 
   const masterEnabled = options?.enableRules !== false;
   const enabledRules = options?.enabledRules || {};

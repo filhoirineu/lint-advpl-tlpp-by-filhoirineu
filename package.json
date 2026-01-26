@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TL++",
   "description": "Lint offline para ADVPL/TL++ — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "0.0.12",
+  "version": "2.0.0",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -38,6 +38,22 @@
       {
         "command": "lint-advpl.sortVariables",
         "title": "LINT ADVPL/TL++: Ordenar Variaveis"
+      },
+      {
+        "command": "lint-advpl.arrumar",
+        "title": "LINT ADVPL/TL++: Arrumar Variaveis"
+      },
+      {
+        "command": "lint-advpl.addIgnoredFile",
+        "title": "LINT ADVPL/TL++: Ignorar arquivo (adicionar a lint-advpl.ignoredFiles)"
+      },
+      {
+        "command": "lint-advpl.removeIgnoredFile",
+        "title": "LINT ADVPL/TL++: Remover arquivo de lint-advpl.ignoredFiles"
+      },
+      {
+        "command": "lint-advpl.showIgnoredFiles",
+        "title": "LINT ADVPL/TL++: Mostrar lint-advpl.ignoredFiles"
       },
       {
         "command": "lint-advpl.convertBeginSQL",
@@ -99,6 +115,33 @@
           "command": "lint-advpl.sortVariables",
           "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
           "group": "converters"
+        },
+        {
+          "command": "lint-advpl.arrumar",
+          "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
+          "group": "converters"
+        },
+        {
+          "command": "lint-advpl.addIgnoredFile",
+          "when": "editorTextFocus && editorLangId == advpl",
+          "group": "converters"
+        },
+        {
+          "command": "lint-advpl.removeIgnoredFile",
+          "when": "editorTextFocus && editorLangId == advpl",
+          "group": "converters"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "lint-advpl.addIgnoredFile",
+          "when": "resourceLangId == advpl",
+          "group": "navigation"
+        },
+        {
+          "command": "lint-advpl.removeIgnoredFile",
+          "when": "resourceLangId == advpl",
+          "group": "navigation"
         }
       ]
     },
@@ -128,6 +171,14 @@
             "ALTERA"
           ],
           "description": "List of variable names (case-insensitive) to ignore for the unused-local rule."
+        },
+        "lint-advpl.ignoredFiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "List of file paths, file name suffixes or simple glob patterns to exclude from analysis (e.g. 'PPCP004.prw' or 'fontestotvs/**')."
         },
         "lint-advpl.hungarianSuggestInitializers": {
           "type": "boolean",

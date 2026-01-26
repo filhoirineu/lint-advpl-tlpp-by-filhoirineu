@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 This project follows the Keep a Changelog format and aims to use Semantic Versioning.
 
+## [2.0.0] - 26 de janeiro de 2026
+
+Major release: reorganização de comandos, correções e melhorias de usabilidade.
+
+### Added
+
+- `lint-advpl.arrumar` — novo utilitário para normalizar espaçamento de `:=` e `AS`.
+- Comandos para gerenciar `lint-advpl.ignoredFiles` (adicionar/remover/mostrar) e correção para que a análise respeite os padrões.
+
+### Changed
+
+- Removido o comando `alignVariables` e atualizadas referências/documentação para usar `arrumar`.
+- Quick-fix de cabeçalho de documentação agora preserva quebras de linha corretamente.
+
 ## [0.0.12] - 21 de janeiro de 2026
 
 Release: Novas regras de validação de campos, snippets configuráveis, melhorias em conversores e expansão documentar completa.
@@ -116,6 +130,27 @@ Release: Novas regras de validação de campos, snippets configuráveis, melhori
 - Todas as 11 regras agora ativas e bem documentadas.
 - Recomendação: Execute `npm run compile` antes de usar a extensão localmente.
 - Para publicação no Marketplace: `npx vsce publish --pat <token>`.
+
+## [1.0.0] - 23 de janeiro de 2026
+
+Major release: stability improvements, new utilities and configuration to manage ignored files.
+
+### Added
+
+- `lint-advpl.ignoredFiles` setting to exclude files/path-suffixes/simple-globs from analysis.
+- Commands: `lint-advpl.addIgnoredFile`, `lint-advpl.removeIgnoredFile`, `lint-advpl.showIgnoredFiles` (available in editor and explorer context menus).
+- Editor utilities: `lint-advpl.sortVariables`, `lint-advpl.arrumar` to sort and normalize variable declarations within selection.
+
+### Changed
+
+- Analyzer matching for `ignoredFiles` now normalizes path separators and supports basename/suffix/glob matching (avoids accidental full-repo ignores).
+- `advpl/require-local` improved to detect `++`/`--` increments and respect file-level `Static`/`Private` declarations.
+- Several rules now ignore variables matching `MV_PAR\d{2}`.
+
+### Fixed
+
+- Multiple false-positive sources related to ignored-files matching and require-local scoping.
+- JSON/packaging issues fixed and TypeScript compilation validated.
 
 ---
 

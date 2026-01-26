@@ -1,0 +1,7 @@
+	Local cAtivo           as character
+	Local cCodNovo        := StrZero(nCodNovo,6)
+	Local cQuery           as character
+	Local lAtivoInformacao as logical
+	Local lSeek           := .T.
+	Local nCodNovo        := 005000
+	Local nRegistros       as numeric

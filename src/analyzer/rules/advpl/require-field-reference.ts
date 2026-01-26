@@ -23,6 +23,9 @@ export function run(sourceText: string, fileName: string): Issue[] {
     const idx = m.index;
     const name = m[1];
 
+    // ignore MV_PAR00..MV_PAR99 system/session variables
+    if (/^mv_par\d{2}$/i.test(name)) continue;
+
     // check preceding text (up to 8 chars) for '->' or ':' qualifier
     const before = sanitized.slice(Math.max(0, idx - 24), idx);
     if (/(->|::|:)\s*$/.test(before)) continue;
