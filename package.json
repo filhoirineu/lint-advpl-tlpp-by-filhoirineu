@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TL++",
   "description": "Lint offline para ADVPL/TL++ — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "2.0.0",
+  "version": "3.0.1",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -219,6 +219,7 @@
             "advpl/require-local": true,
             "advpl/hungarian-notation": true,
             "advpl/suggest-default-for-params": true,
+            "advpl/no-unused-static-function": true,
             "advpl/require-explicit-private": true,
             "advpl/include-replace": true,
             "advpl/require-with-nolock": true,

@@ -131,6 +131,22 @@ Release: Novas regras de validação de campos, snippets configuráveis, melhori
 - Recomendação: Execute `npm run compile` antes de usar a extensão localmente.
 - Para publicação no Marketplace: `npx vsce publish --pat <token>`.
 
+## [3.0.1] - 02 de fevereiro de 2026
+
+Pequeno release com nova regra e correção de detecção de parâmetros tipados.
+
+### Added
+
+- `advpl/no-unused-static-function`: detecta `Static Function` declaradas em um arquivo que não são chamadas em lugar algum e sugere sua remoção para limpeza de código. A regra é executada prioritariamente no pipeline de análise.
+
+### Fixed
+
+- Corrigida a extração de parâmetros tipados pela regra `advpl/suggest-default-for-params` para reconhecer assinaturas no formato `nome as Tipo` (tipos variados), evitando falso-negativos.
+
+### Changed
+
+- A regra `advpl/no-unused-static-function` foi priorizada para reduzir ruído e destacar código estático não utilizado.
+
 ## [1.0.0] - 23 de janeiro de 2026
 
 Major release: stability improvements, new utilities and configuration to manage ignored files.

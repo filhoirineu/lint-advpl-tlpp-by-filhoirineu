@@ -10,6 +10,7 @@ import { run as runRequireWithNoLock } from "./rules/advpl/require-with-nolock";
 import { run as runUseCrlf } from "./rules/advpl/use-crlf";
 import { run as runRequireFieldRef } from "./rules/advpl/require-field-reference";
 import { run as runRequireFieldTable } from "./rules/advpl/require-field-table";
+import { run as runNoUnusedStatic } from "./rules/advpl/no-unused-static-function";
 
 export function analyzeDocument(
   sourceText: string,
@@ -24,7 +25,7 @@ export function analyzeDocument(
     enableRules?: boolean;
     enabledRules?: Record<string, boolean>;
     ignoredFiles?: string[];
-  }
+  },
 ): AnalysisResult {
   const issues: Issue[] = [];
 
@@ -115,6 +116,13 @@ export function analyzeDocument(
   const enabledRules = options?.enabledRules || {};
 
   // run core advpl rules for now (respect masterEnabled and per-rule flags)
+  // Prioritize unused static-function detection first
+  if (
+    masterEnabled &&
+    enabledRules["advpl/no-unused-static-function"] !== false
+  ) {
+    issues.push(...runNoUnusedStatic(sourceText, fileName));
+  }
   if (masterEnabled && enabledRules["advpl/no-unused-local"] !== false) {
     issues.push(...runNoUnusedLocal(sourceText, fileName, options));
   }
@@ -146,12 +154,13 @@ export function analyzeDocument(
     issues.push(
       ...runRequireWithNoLock(sourceText, fileName, {
         database: options?.database,
-      })
+      }),
     );
   }
   if (masterEnabled && enabledRules["advpl/use-crlf"] !== false) {
     issues.push(...runUseCrlf(sourceText, fileName));
   }
+
   if (
     masterEnabled &&
     enabledRules["advpl/require-field-reference"] !== false

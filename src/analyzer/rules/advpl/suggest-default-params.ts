@@ -31,7 +31,7 @@ export function run(sourceText: string, fileName: string): Issue[] {
       if (m) name = m[1];
     } else if (/^\s*WsMethod/i.test(fm[0]) || /^\s*WSMETHOD/i.test(fm[0])) {
       const m = after.match(
-        /^[A-Za-z_][A-Za-z0-9_]*\s+([A-Za-z_][A-Za-z0-9_]*)/i
+        /^[A-Za-z_][A-Za-z0-9_]*\s+([A-Za-z_][A-Za-z0-9_]*)/i,
       );
       if (m) name = m[1];
       else {
@@ -77,8 +77,15 @@ export function run(sourceText: string, fileName: string): Issue[] {
 
     const params = (cur.params || "")
       .split(",")
-      .map((s) => s.trim())
-      .filter((s) => !!s && /^[A-Za-z_][A-Za-z0-9_]*$/.test(s));
+      .map((s) => {
+        const src = s.trim();
+        // accept plain names or typed params like: name as character
+        const m = src.match(
+          /^([A-Za-z_][A-Za-z0-9_]*)(?:\s+as\s+[A-Za-z_][A-Za-z0-9_]*)?$/i,
+        );
+        return m ? m[1] : null;
+      })
+      .filter((s) => !!s) as string[];
 
     if (params.length === 0) {
       continue;
@@ -92,7 +99,7 @@ export function run(sourceText: string, fileName: string): Issue[] {
       const tail = dm[1] ?? "";
       const declPart = tail.split(/[:=]/)[0];
       const ids = (declPart.match(/[A-Za-z_][A-Za-z0-9_]*/g) || []).filter(
-        (s) => s.toLowerCase() !== "default"
+        (s) => s.toLowerCase() !== "default",
       );
       for (const id of ids) {
         declaredDefaults.add(id.toLowerCase());
@@ -109,7 +116,7 @@ export function run(sourceText: string, fileName: string): Issue[] {
       // ('Class <Name>' trailing), skip suggesting Default here — the real
       // implementation will appear elsewhere and should be checked instead.
       const inClass = classRanges.some(
-        (r) => cur.index >= r.start && cur.index < r.end
+        (r) => cur.index >= r.start && cur.index < r.end,
       );
       if (inClass) {
         // inspect the declaration line to see if it's an implementation (has 'Class')

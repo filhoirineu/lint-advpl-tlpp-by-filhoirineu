@@ -26,7 +26,7 @@ User Function setInfoUsuario()
 	aUndeclared := {}               // ?? Ainda reporta erro (não declarada)
 
 Return lRet
-	EndFunction
+
 
 User Function anotherFunc()
 	// aINFOUSUARIO ainda é Static global e acessível aqui
@@ -37,7 +37,7 @@ User Function anotherFunc()
 	aBadVariable := {}              // ?? Reporta erro (não declarada)
 
 Return .T.
-	EndFunction
+
 
 // PRIVATE declarations também são respeitadas em nível de arquivo
 	Private cPRIVATE_VAR := "test"
@@ -50,4 +50,3 @@ User Function usarPrivate()
 	lLocal := .F.                   // ? OK
 
 Return .T.
-	EndFunction
