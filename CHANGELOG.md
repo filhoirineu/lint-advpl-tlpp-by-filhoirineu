@@ -131,6 +131,23 @@ Release: Novas regras de validação de campos, snippets configuráveis, melhori
 - Recomendação: Execute `npm run compile` antes de usar a extensão localmente.
 - Para publicação no Marketplace: `npx vsce publish --pat <token>`.
 
+## [3.0.2] - 02 de fevereiro de 2026
+
+Patch release: fixes to ignored-files handling and improvements to static-function detection.
+
+### Added
+
+- Ignoração automática para funções `Static` padrão chamadas pelo framework: `MenuDef`, `ModelDef`, `ViewDef` (não serão reportadas como não usadas).
+
+### Fixed
+
+- `lint-advpl.removeIgnoredFile` now detects and removes the selected pattern from the configuration scope where it is defined (Workspace Folder / Workspace / User), preventing stale entries.
+- The analyzer now merges `lint-advpl.ignoredFiles` from User, Workspace and Workspace Folder scopes so user-level ignores are respected even when workspace settings exist.
+
+### Changed
+
+- Bumped package version to `3.0.2`.
+
 ## [3.0.1] - 02 de fevereiro de 2026
 
 Pequeno release com nova regra e correção de detecção de parâmetros tipados.

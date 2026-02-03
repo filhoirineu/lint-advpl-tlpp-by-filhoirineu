@@ -2,7 +2,7 @@
   "name": "lint-advpl-tlpp",
   "displayName": "Lint AdvPL/TL++",
   "description": "Lint offline para ADVPL/TL++ — painel lateral com sugestões de escopo, nomenclatura e boas práticas.",
-  "version": "3.0.1",
+  "version": "3.0.3",
   "publisher": "filhoirineu",
   "repository": {
     "type": "git",
@@ -37,23 +37,23 @@
       },
       {
         "command": "lint-advpl.sortVariables",
-        "title": "LINT ADVPL/TL++: Ordenar Variaveis"
+        "title": "LINT ADVPL/TL++: Ordenar Variáveis"
       },
       {
         "command": "lint-advpl.arrumar",
-        "title": "LINT ADVPL/TL++: Arrumar Variaveis"
+        "title": "LINT ADVPL/TL++: Arrumar Variáveis"
       },
       {
         "command": "lint-advpl.addIgnoredFile",
-        "title": "LINT ADVPL/TL++: Ignorar arquivo (adicionar a lint-advpl.ignoredFiles)"
+        "title": "LINT ADVPL/TL++: Ignorar arquivo"
       },
       {
         "command": "lint-advpl.removeIgnoredFile",
-        "title": "LINT ADVPL/TL++: Remover arquivo de lint-advpl.ignoredFiles"
+        "title": "LINT ADVPL/TL++: Remover arquivo ignorado"
       },
       {
         "command": "lint-advpl.showIgnoredFiles",
-        "title": "LINT ADVPL/TL++: Mostrar lint-advpl.ignoredFiles"
+        "title": "LINT ADVPL/TL++: Mostrar arquivos ignorados"
       },
       {
         "command": "lint-advpl.convertBeginSQL",
@@ -98,38 +98,38 @@
       "editor/context": [
         {
           "command": "lint-advpl.convertBeginSQL",
-          "when": "editorTextFocus && editorLangId == advpl",
-          "group": "converters"
+          "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
+          "group": "@converters"
         },
         {
           "command": "lint-advpl.convertSelectionToQuery",
-          "when": "editorTextFocus && editorLangId == advpl",
-          "group": "converters"
+          "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
+          "group": "@converters"
         },
         {
           "command": "lint-advpl.convertAdvplToSql",
-          "when": "editorTextFocus && editorLangId == advpl",
-          "group": "converters"
+          "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
+          "group": "@converters"
         },
         {
           "command": "lint-advpl.sortVariables",
           "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
-          "group": "converters"
+          "group": "@beautyfiers"
         },
         {
           "command": "lint-advpl.arrumar",
           "when": "editorTextFocus && editorLangId == advpl && editorHasSelection",
-          "group": "converters"
+          "group": "@beautyfiers"
         },
         {
           "command": "lint-advpl.addIgnoredFile",
           "when": "editorTextFocus && editorLangId == advpl",
-          "group": "converters"
+          "group": "@ignore"
         },
         {
           "command": "lint-advpl.removeIgnoredFile",
           "when": "editorTextFocus && editorLangId == advpl",
-          "group": "converters"
+          "group": "@ignore"
         }
       ],
       "explorer/context": [
@@ -220,6 +220,8 @@
             "advpl/hungarian-notation": true,
             "advpl/suggest-default-for-params": true,
             "advpl/no-unused-static-function": true,
+            "advpl/require-upper-fn-case": true,
+            "advpl/unclosed-string": true,
             "advpl/require-explicit-private": true,
             "advpl/include-replace": true,
             "advpl/require-with-nolock": true,

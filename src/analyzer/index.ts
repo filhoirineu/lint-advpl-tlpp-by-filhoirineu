@@ -11,6 +11,8 @@ import { run as runUseCrlf } from "./rules/advpl/use-crlf";
 import { run as runRequireFieldRef } from "./rules/advpl/require-field-reference";
 import { run as runRequireFieldTable } from "./rules/advpl/require-field-table";
 import { run as runNoUnusedStatic } from "./rules/advpl/no-unused-static-function";
+import { run as runRequireUpperFnCase } from "./rules/advpl/require-upper-fn-case";
+import { run as runUnclosedString } from "./rules/advpl/unclosed-string";
 
 export function analyzeDocument(
   sourceText: string,
@@ -167,8 +169,15 @@ export function analyzeDocument(
   ) {
     issues.push(...runRequireFieldRef(sourceText, fileName));
   }
+  if (masterEnabled && enabledRules["advpl/unclosed-string"] !== false) {
+    issues.push(...runUnclosedString(sourceText, fileName));
+  }
   if (masterEnabled && enabledRules["advpl/require-field-table"] !== false) {
     issues.push(...runRequireFieldTable(sourceText, fileName));
+  }
+  // require certain helper functions to appear in uppercase
+  if (masterEnabled && enabledRules["advpl/require-upper-fn-case"] !== false) {
+    issues.push(...runRequireUpperFnCase(sourceText, fileName));
   }
 
   const summary = {

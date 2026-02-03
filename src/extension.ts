@@ -241,7 +241,7 @@ function uppercaseAdvplTableFields(code: string): string {
         // preserve original spacing around arrow
         const arrowMatch =
           /^([A-Za-z_][A-Za-z0-9_]*)(\s*->\s*)([A-Za-z_][A-Za-z0-9_]*)/.exec(
-            rem
+            rem,
           );
         const arrow = arrowMatch ? arrowMatch[2] : "->";
         out += left + arrow + right;
@@ -370,7 +370,7 @@ function postProcessSqlLines(sql: string, companySuffix: string): string {
     // replace patterns like " + var + ", '" + var + "', or mixed quotes, with 'var'
     ln = ln.replace(
       /["']\s*\+\s*([A-Za-z_][A-Za-z0-9_]*)\s*\+\s*["']/g,
-      "'$1'"
+      "'$1'",
     );
     // collapse runs of 3+ single quotes into two (preserve empty-string literals '')
     ln = ln.replace(/'{3,}/g, "''");
@@ -378,7 +378,7 @@ function postProcessSqlLines(sql: string, companySuffix: string): string {
     // detect table-only lines like 'Z5L010' (table + companySuffix) and prefix FROM if needed
     const tblRe = new RegExp(
       "^\\s*([A-Za-z0-9_]+)" + companySuffix + "\\s*$",
-      "i"
+      "i",
     );
     if (tblRe.test(ln)) {
       // if we haven't seen a FROM already and previous meaningful line was SELECT, add FROM
@@ -416,21 +416,21 @@ export function activate(context: vscode.ExtensionContext) {
   provider = new LintTreeProvider(context);
 
   context.subscriptions.push(
-    vscode.window.registerTreeDataProvider(LintTreeProvider.viewId, provider)
+    vscode.window.registerTreeDataProvider(LintTreeProvider.viewId, provider),
   );
   console.log(
     "lint-advpl: registered TreeDataProvider for",
-    LintTreeProvider.viewId
+    LintTreeProvider.viewId,
   );
 
   const cfg = vscode.workspace.getConfiguration("lint-advpl");
   const enableConvertBeginSQL = cfg.get<boolean>("enableConvertBeginSQL", true);
   const enableConvertSelection = cfg.get<boolean>(
     "enableConvertSelection",
-    true
+    true,
   );
   console.log(
-    `lint-advpl: config enableConvertBeginSQL=${enableConvertBeginSQL} enableConvertSelection=${enableConvertSelection}`
+    `lint-advpl: config enableConvertBeginSQL=${enableConvertBeginSQL} enableConvertSelection=${enableConvertSelection}`,
   );
 
   // register ADVPL -> SQL converter command
@@ -461,7 +461,7 @@ export function activate(context: vscode.ExtensionContext) {
             const sql = convertAdvplConcatToSql(sel, company);
             await vscode.env.clipboard.writeText(sql);
             vscode.window.showInformationMessage(
-              "LINT: SQL copiado para o clipboard."
+              "LINT: SQL copiado para o clipboard.",
             );
             return;
           }
@@ -469,15 +469,15 @@ export function activate(context: vscode.ExtensionContext) {
           const sql = convertAdvplConcatToSql(sel, company);
           await vscode.env.clipboard.writeText(sql);
           vscode.window.showInformationMessage(
-            "LINT: SQL copiado para o clipboard."
+            "LINT: SQL copiado para o clipboard.",
           );
         } catch (e: any) {
           vscode.window.showErrorMessage(
-            "LINT: Falha ao converter para SQL: " + (e?.message ?? String(e))
+            "LINT: Falha ao converter para SQL: " + (e?.message ?? String(e)),
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   // command: insert a header snippet at given uri/position (used by quick-fix)
@@ -488,7 +488,10 @@ export function activate(context: vscode.ExtensionContext) {
         try {
           // ensure any escaped newline sequences are converted to real newlines
           if (typeof snippet === "string") {
-            snippet = snippet.replace(/\\r\\n/g, "\r\n").replace(/\\n/g, "\n").replace(/\\t/g, "\t");
+            snippet = snippet
+              .replace(/\\r\\n/g, "\r\n")
+              .replace(/\\n/g, "\n")
+              .replace(/\\t/g, "\t");
           }
           const doc = await vscode.workspace.openTextDocument(uri);
           const ed = await vscode.window.showTextDocument(doc, {
@@ -498,8 +501,8 @@ export function activate(context: vscode.ExtensionContext) {
         } catch (e) {
           // ignore
         }
-      }
-    )
+      },
+    ),
   );
 
   // register analyze command
@@ -509,10 +512,10 @@ export function activate(context: vscode.ExtensionContext) {
         runAnalyzeNow(true); // show information message
       } catch (e: any) {
         vscode.window.showErrorMessage(
-          "LINT: Falha ao analisar arquivo: " + (e?.message ?? String(e))
+          "LINT: Falha ao analisar arquivo: " + (e?.message ?? String(e)),
         );
       }
-    })
+    }),
   );
 
   // register export command
@@ -522,7 +525,7 @@ export function activate(context: vscode.ExtensionContext) {
         const last = provider?.getLastResult();
         if (!last) {
           vscode.window.showWarningMessage(
-            "LINT: Nenhum resultado para exportar."
+            "LINT: Nenhum resultado para exportar.",
           );
           return;
         }
@@ -532,7 +535,7 @@ export function activate(context: vscode.ExtensionContext) {
           filters: { Text: ["txt"] },
           defaultUri: vscode.Uri.file(
             (last.fileName || "lint-report").replace(/[\\/:*?"<>|]/g, "_") +
-              ".lint.txt"
+              ".lint.txt",
           ),
         });
 
@@ -541,14 +544,14 @@ export function activate(context: vscode.ExtensionContext) {
         const content = provider!.buildTxtReport(last);
         await vscode.workspace.fs.writeFile(uri, Buffer.from(content, "utf8"));
         vscode.window.showInformationMessage(
-          "LINT: TXT exportado com sucesso."
+          "LINT: TXT exportado com sucesso.",
         );
       } catch (e: any) {
         vscode.window.showErrorMessage(
-          "LINT: Falha ao exportar TXT: " + (e?.message ?? String(e))
+          "LINT: Falha ao exportar TXT: " + (e?.message ?? String(e)),
         );
       }
-    })
+    }),
   );
 
   // ping command removed
@@ -558,12 +561,12 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand("lint-advpl.openView", async () => {
       try {
         await vscode.commands.executeCommand(
-          "workbench.view.extension.lint-advpl"
+          "workbench.view.extension.lint-advpl",
         );
       } catch (e) {
         // ignore
       }
-    })
+    }),
   );
 
   // quick helper: open converter-related settings in Settings UI
@@ -575,15 +578,15 @@ export function activate(context: vscode.ExtensionContext) {
           // opens Settings UI filtered to the converter setting
           await vscode.commands.executeCommand(
             "workbench.action.openSettings",
-            "lint-advpl.enableConvertSelection"
+            "lint-advpl.enableConvertSelection",
           );
         } catch (e) {
           vscode.window.showInformationMessage(
-            "LINT: Unable to open settings UI. Check 'lint-advpl.enableConvertSelection' in settings.json."
+            "LINT: Unable to open settings UI. Check 'lint-advpl.enableConvertSelection' in settings.json.",
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   // commands to manage ignored files setting
@@ -619,14 +622,14 @@ export function activate(context: vscode.ExtensionContext) {
 
           if (!toAdd) {
             vscode.window.showWarningMessage(
-              "LINT: Nenhum arquivo selecionado para ignorar."
+              "LINT: Nenhum arquivo selecionado para ignorar.",
             );
             return;
           }
 
           if (current.includes(toAdd)) {
             vscode.window.showInformationMessage(
-              "LINT: Arquivo já está em ignoredFiles."
+              "LINT: Arquivo já está em ignoredFiles.",
             );
             return;
           }
@@ -635,19 +638,19 @@ export function activate(context: vscode.ExtensionContext) {
           await cfg.update(
             "ignoredFiles",
             current,
-            vscode.ConfigurationTarget.Workspace
+            vscode.ConfigurationTarget.Global,
           );
           vscode.window.showInformationMessage(
-            `LINT: Adicionado '${toAdd}' a lint-advpl.ignoredFiles.`
+            `LINT: Adicionado '${toAdd}' a lint-advpl.ignoredFiles (User settings).`,
           );
         } catch (e: any) {
           vscode.window.showErrorMessage(
             "LINT: Falha ao adicionar arquivo em ignoredFiles: " +
-              (e?.message ?? String(e))
+              (e?.message ?? String(e)),
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
@@ -656,10 +659,22 @@ export function activate(context: vscode.ExtensionContext) {
       async (resource?: vscode.Uri | string) => {
         try {
           const cfg = vscode.workspace.getConfiguration("lint-advpl");
-          const current = (cfg.get<string[]>("ignoredFiles") || []).slice();
-          if (!current.length) {
+
+          // Inspect configuration to determine where the pattern is stored
+          const inspected = cfg.inspect<string[]>("ignoredFiles");
+          const globalArr = (inspected?.globalValue as string[]) || [];
+          const workspaceArr = (inspected?.workspaceValue as string[]) || [];
+          const workspaceFolderArr =
+            (inspected?.workspaceFolderValue as string[]) || [];
+
+          // Build an effective list for user selection
+          const effective = Array.from(
+            new Set([...globalArr, ...workspaceArr, ...workspaceFolderArr]),
+          );
+
+          if (!effective.length) {
             vscode.window.showInformationMessage(
-              "LINT: Nenhum arquivo em ignoredFiles."
+              "LINT: Nenhum arquivo em ignoredFiles.",
             );
             return;
           }
@@ -677,37 +692,67 @@ export function activate(context: vscode.ExtensionContext) {
           }
 
           if (!toRemove) {
-            // ask user which pattern to remove
-            const pick = await vscode.window.showQuickPick(current, {
+            const pick = await vscode.window.showQuickPick(effective, {
               placeHolder: "Select ignored pattern to remove",
             });
             if (!pick) return;
             toRemove = pick;
           }
 
-          const idx = current.indexOf(toRemove);
-          if (idx === -1) {
+          // Attempt to remove from the most specific scope first
+          if (workspaceFolderArr && workspaceFolderArr.includes(toRemove)) {
+            const newArr = workspaceFolderArr.slice();
+            newArr.splice(newArr.indexOf(toRemove), 1);
+            // update workspace folder scope (use folder-specific configuration)
+            await cfg.update(
+              "ignoredFiles",
+              newArr,
+              vscode.ConfigurationTarget.Workspace,
+            );
             vscode.window.showInformationMessage(
-              "LINT: Padrão não encontrado em ignoredFiles."
+              `LINT: Removido '${toRemove}' de lint-advpl.ignoredFiles (Workspace Folder).`,
             );
             return;
           }
-          current.splice(idx, 1);
-          await cfg.update(
-            "ignoredFiles",
-            current,
-            vscode.ConfigurationTarget.Workspace
-          );
+
+          if (workspaceArr && workspaceArr.includes(toRemove)) {
+            const newArr = workspaceArr.slice();
+            newArr.splice(newArr.indexOf(toRemove), 1);
+            await cfg.update(
+              "ignoredFiles",
+              newArr,
+              vscode.ConfigurationTarget.Workspace,
+            );
+            vscode.window.showInformationMessage(
+              `LINT: Removido '${toRemove}' de lint-advpl.ignoredFiles (Workspace settings).`,
+            );
+            return;
+          }
+
+          if (globalArr && globalArr.includes(toRemove)) {
+            const newArr = globalArr.slice();
+            newArr.splice(newArr.indexOf(toRemove), 1);
+            await cfg.update(
+              "ignoredFiles",
+              newArr,
+              vscode.ConfigurationTarget.Global,
+            );
+            vscode.window.showInformationMessage(
+              `LINT: Removido '${toRemove}' de lint-advpl.ignoredFiles (User settings).`,
+            );
+            return;
+          }
+
           vscode.window.showInformationMessage(
-            `LINT: Removido '${toRemove}' de lint-advpl.ignoredFiles.`
+            "LINT: Padrão não encontrado em ignoredFiles.",
           );
         } catch (e: any) {
           vscode.window.showErrorMessage(
-            "LINT: Falha ao remover ignoredFiles: " + (e?.message ?? String(e))
+            "LINT: Falha ao remover ignoredFiles: " + (e?.message ?? String(e)),
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   context.subscriptions.push(
@@ -716,14 +761,14 @@ export function activate(context: vscode.ExtensionContext) {
       try {
         await vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "lint-advpl.ignoredFiles"
+          "lint-advpl.ignoredFiles",
         );
       } catch (e) {
         vscode.window.showInformationMessage(
-          "LINT: Unable to open settings for 'lint-advpl.ignoredFiles'."
+          "LINT: Unable to open settings for 'lint-advpl.ignoredFiles'.",
         );
       }
-    })
+    }),
   );
 
   // command: open a temporary editor with the current doc header template for editing
@@ -740,15 +785,15 @@ export function activate(context: vscode.ExtensionContext) {
           });
           await vscode.window.showTextDocument(doc, { preview: false });
           vscode.window.showInformationMessage(
-            "Edit the header template, then run 'Lint ADVPL: Save Doc Header Template' to apply."
+            "Edit the header template, then run 'Lint ADVPL: Save Doc Header Template' to apply.",
           );
         } catch (e) {
           vscode.window.showErrorMessage(
-            "LINT: Unable to open header template editor."
+            "LINT: Unable to open header template editor.",
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   // command: save the active editor content as the doc header template in workspace settings
@@ -759,7 +804,7 @@ export function activate(context: vscode.ExtensionContext) {
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
           vscode.window.showWarningMessage(
-            "LINT: No active editor to read template from."
+            "LINT: No active editor to read template from.",
           );
           return;
         }
@@ -769,18 +814,19 @@ export function activate(context: vscode.ExtensionContext) {
           await cfg.update(
             "docHeaderTemplate",
             content,
-            vscode.ConfigurationTarget.Workspace
+            vscode.ConfigurationTarget.Workspace,
           );
           vscode.window.showInformationMessage(
-            "LINT: Header template saved to workspace settings."
+            "LINT: Header template saved to workspace settings.",
           );
         } catch (e: any) {
           vscode.window.showErrorMessage(
-            "LINT: Failed to save header template: " + (e?.message ?? String(e))
+            "LINT: Failed to save header template: " +
+              (e?.message ?? String(e)),
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   // register Sort Variables command
@@ -795,7 +841,7 @@ export function activate(context: vscode.ExtensionContext) {
       const sel = editor.selection;
       if (sel.isEmpty) {
         vscode.window.showWarningMessage(
-          "LINT: Selecione as declarações a serem ordenadas."
+          "LINT: Selecione as declarações a serem ordenadas.",
         );
         return;
       }
@@ -862,7 +908,7 @@ export function activate(context: vscode.ExtensionContext) {
           const trimmedRest = d.rest.trim();
           return `${d.indent}${d.keyword} ${trimmedRest}${d.comment ? " " + d.comment : ""}`.replace(
             /\s+$/,
-            ""
+            "",
           );
         });
         resultText = out.join(doc.eol === vscode.EndOfLine.LF ? "\n" : "\r\n");
@@ -889,14 +935,14 @@ export function activate(context: vscode.ExtensionContext) {
             items.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
             const joined = items.map((it) => it.part).join(", ");
             outLines.push(
-              `${indent}${keyword} ${joined}${comment ? " " + comment : ""}`
+              `${indent}${keyword} ${joined}${comment ? " " + comment : ""}`,
             );
           } else {
             outLines.push(ln);
           }
         }
         resultText = outLines.join(
-          doc.eol === vscode.EndOfLine.LF ? "\n" : "\r\n"
+          doc.eol === vscode.EndOfLine.LF ? "\n" : "\r\n",
         );
       }
 
@@ -909,7 +955,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch (e) {
         // ignore if command invocation fails
       }
-    })
+    }),
   );
 
   // register ARRUMAR command (normalize spacing around AS and :=)
@@ -939,7 +985,7 @@ export function activate(context: vscode.ExtensionContext) {
           text = doc.getText();
           rangeToReplace = new vscode.Range(
             doc.positionAt(0),
-            doc.positionAt(doc.getText().length)
+            doc.positionAt(doc.getText().length),
           );
         }
 
@@ -948,10 +994,10 @@ export function activate(context: vscode.ExtensionContext) {
           eb.replace(rangeToReplace, transformed);
         });
         vscode.window.showInformationMessage(
-          "LINT: tabela->campo convertidos para MAIÚSCULAS."
+          "LINT: tabela->campo convertidos para MAIÚSCULAS.",
         );
-      }
-    )
+      },
+    ),
   );
 
   // register convert BeginSQL block command (only if enabled)
@@ -983,7 +1029,7 @@ export function activate(context: vscode.ExtensionContext) {
                 selText = match[0];
                 replaceRange = new vscode.Range(
                   doc.positionAt(start),
-                  doc.positionAt(end)
+                  doc.positionAt(end),
                 );
                 break;
               }
@@ -992,7 +1038,7 @@ export function activate(context: vscode.ExtensionContext) {
 
           if (!selText || !/BeginSQL\b/i.test(selText)) {
             vscode.window.showWarningMessage(
-              "LINT: Selecione um bloco BeginSQL...EndSQL."
+              "LINT: Selecione um bloco BeginSQL...EndSQL.",
             );
             return;
           }
@@ -1003,7 +1049,7 @@ export function activate(context: vscode.ExtensionContext) {
           let beginAlias: string | undefined = undefined;
           if (/^\s*BeginSQL\b/i.test(lines[0])) {
             const m = /^\s*BeginSQL\b(?:\s+alias\s+([A-Za-z0-9_]+))?/i.exec(
-              lines[0]
+              lines[0],
             );
             if (m && m[1]) beginAlias = m[1];
             lines.shift();
@@ -1070,7 +1116,7 @@ export function activate(context: vscode.ExtensionContext) {
                     exprPieces.push('RetSQLName("' + param + '")');
                     const aliasLiteral = aliasMatch[0] + " WITH(NOLOCK)";
                     exprPieces.push(
-                      '"' + aliasLiteral.replace(/"/g, '\\"') + '"'
+                      '"' + aliasLiteral.replace(/"/g, '\\"') + '"',
                     );
                     // consume the alias characters so they are not added again as tail
                     lastIndex = tailStart + aliasMatch[0].length;
@@ -1135,7 +1181,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const leftLiteral = (" " + before + "'").replace(/"/g, '\\"');
                 const rightLiteral = "' ".replace(/"/g, '\\"');
                 console.log(
-                  `lint-advpl: convertBeginSQL detected filial prefix='${prefix}' tbl='${tbl}'`
+                  `lint-advpl: convertBeginSQL detected filial prefix='${prefix}' tbl='${tbl}'`,
                 );
                 out.push(
                   'cQuery += "' +
@@ -1144,7 +1190,7 @@ export function activate(context: vscode.ExtensionContext) {
                     tbl +
                     '") + "' +
                     rightLiteral +
-                    '" + CRLF'
+                    '" + CRLF',
                 );
               } else {
                 // FROM/JOIN table detection to inject RetSQLName when needed
@@ -1155,7 +1201,7 @@ export function activate(context: vscode.ExtensionContext) {
                   // compute actual start of table name to preserve any whitespace between FROM/JOIN and table
                   const tblStart = trimmedLine.indexOf(
                     tbl,
-                    m2.index + m2[1].length
+                    m2.index + m2[1].length,
                   );
                   const prefix = trimmedLine.slice(0, tblStart);
                   const after = trimmedLine.slice(tblStart + tbl.length);
@@ -1169,7 +1215,7 @@ export function activate(context: vscode.ExtensionContext) {
                       first3 +
                       '") + "' +
                       rightLiteral +
-                      '" + CRLF'
+                      '" + CRLF',
                   );
                 } else {
                   // fallback: quote the whole raw line, append a space if it ends alphanumeric
@@ -1178,7 +1224,7 @@ export function activate(context: vscode.ExtensionContext) {
                     ? rawTrim + " "
                     : rawTrim;
                   out.push(
-                    'cQuery += "' + rawOut.replace(/"/g, '\\"') + '" + CRLF'
+                    'cQuery += "' + rawOut.replace(/"/g, '\\"') + '" + CRLF',
                   );
                 }
               }
@@ -1194,7 +1240,7 @@ export function activate(context: vscode.ExtensionContext) {
                 if (/[A-Za-z0-9]$/.test(combined.trim()))
                   combined = combined + " ";
                 out.push(
-                  'cQuery += "' + combined.replace(/"/g, '\\"') + '" + CRLF'
+                  'cQuery += "' + combined.replace(/"/g, '\\"') + '" + CRLF',
                 );
               } else {
                 // join pieces with ' + '
@@ -1232,7 +1278,7 @@ export function activate(context: vscode.ExtensionContext) {
               ? replaceRange.start
               : editor.selection.start;
             const endPos = doc.positionAt(
-              doc.offsetAt(startPos) + content.length
+              doc.offsetAt(startPos) + content.length,
             );
             const active = vscode.window.activeTextEditor;
             if (
@@ -1242,7 +1288,7 @@ export function activate(context: vscode.ExtensionContext) {
               active.selection = new vscode.Selection(startPos, endPos);
             }
             vscode.window.showInformationMessage(
-              "LINT: Converted BeginSQL block to concatenated query."
+              "LINT: Converted BeginSQL block to concatenated query.",
             );
           } catch (e) {
             // fallback: open untitled document with the result (language advpl)
@@ -1254,17 +1300,17 @@ export function activate(context: vscode.ExtensionContext) {
               preview: false,
             });
             vscode.window.showInformationMessage(
-              "LINT: Converted BeginSQL block to concatenated query (untitled)."
+              "LINT: Converted BeginSQL block to concatenated query (untitled).",
             );
           }
-        }
-      )
+        },
+      ),
     );
   }
 
   // register convert selected SQL -> concatenated AdvPL query (always register; handler respects setting)
   console.log(
-    "lint-advpl: registering convertSelectionToQuery command (runtime-guarded)"
+    "lint-advpl: registering convertSelectionToQuery command (runtime-guarded)",
   );
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -1273,7 +1319,7 @@ export function activate(context: vscode.ExtensionContext) {
         const cfg = vscode.workspace.getConfiguration("lint-advpl");
         if (!cfg.get<boolean>("enableConvertSelection", true)) {
           vscode.window.showWarningMessage(
-            "LINT: Converter de seleção está desabilitado nas configurações."
+            "LINT: Converter de seleção está desabilitado nas configurações.",
           );
           return;
         }
@@ -1343,7 +1389,7 @@ export function activate(context: vscode.ExtensionContext) {
                   exprPieces.push('RetSQLName("' + param + '")');
                   const aliasLiteral = aliasMatch[0] + " WITH(NOLOCK)";
                   exprPieces.push(
-                    '"' + aliasLiteral.replace(/"/g, '\\"') + '"'
+                    '"' + aliasLiteral.replace(/"/g, '\\"') + '"',
                   );
                   lastIndex = tailStart + aliasMatch[0].length;
                   tokenRe.lastIndex = lastIndex;
@@ -1384,7 +1430,7 @@ export function activate(context: vscode.ExtensionContext) {
               const leftLiteral = (" " + before + "'").replace(/"/g, '\\"');
               const rightLiteral = "' ".replace(/"/g, '\\"');
               console.log(
-                `lint-advpl: convertSelectionToQuery detected filial prefix='${prefix}' tbl='${tbl}'`
+                `lint-advpl: convertSelectionToQuery detected filial prefix='${prefix}' tbl='${tbl}'`,
               );
               out.push(
                 'cQuery += "' +
@@ -1393,7 +1439,7 @@ export function activate(context: vscode.ExtensionContext) {
                   tbl +
                   '") + "' +
                   rightLiteral +
-                  '" + CRLF'
+                  '" + CRLF',
               );
               continue;
             }
@@ -1404,7 +1450,7 @@ export function activate(context: vscode.ExtensionContext) {
               const tbl = m2[2];
               const prefix = trimmedLine.slice(0, m2.index + m2[1].length + 1);
               const after = trimmedLine.slice(
-                m2.index + m2[1].length + 1 + tbl.length
+                m2.index + m2[1].length + 1 + tbl.length,
               );
               const first3 = tbl.slice(0, 3);
               const leftLiteral = (" " + prefix).replace(/"/g, '\\"');
@@ -1416,7 +1462,7 @@ export function activate(context: vscode.ExtensionContext) {
                   first3 +
                   '") + "' +
                   rightLiteral +
-                  '" + CRLF'
+                  '" + CRLF',
               );
               continue;
             }
@@ -1437,7 +1483,7 @@ export function activate(context: vscode.ExtensionContext) {
               if (/[A-Za-z0-9]$/.test(combined.trim()))
                 combined = combined + " ";
               out.push(
-                'cQuery += "' + combined.replace(/"/g, '\\"') + '" + CRLF'
+                'cQuery += "' + combined.replace(/"/g, '\\"') + '" + CRLF',
               );
             } else {
               out.push("cQuery += " + exprPieces.join(" + ") + " + CRLF");
@@ -1454,11 +1500,11 @@ export function activate(context: vscode.ExtensionContext) {
           // select the inserted content
           const start = editor.selection.start;
           const endPos = editor.document.positionAt(
-            editor.document.offsetAt(start) + content.length
+            editor.document.offsetAt(start) + content.length,
           );
           editor.selection = new vscode.Selection(start, endPos);
           vscode.window.showInformationMessage(
-            "LINT: Seleção convertida para query concatenada."
+            "LINT: Seleção convertida para query concatenada.",
           );
         } catch (e) {
           // fallback: open untitled if edit fails
@@ -1470,11 +1516,11 @@ export function activate(context: vscode.ExtensionContext) {
             preview: false,
           });
           vscode.window.showInformationMessage(
-            "LINT: Converted selection to concatenated query (untitled)."
+            "LINT: Converted selection to concatenated query (untitled).",
           );
         }
-      }
-    )
+      },
+    ),
   );
 
   // register command to open a file at a given line/column from tree items
@@ -1490,19 +1536,19 @@ export function activate(context: vscode.ExtensionContext) {
           if (typeof line === "number" && typeof col === "number") {
             const pos = new vscode.Position(
               Math.max(0, line - 1),
-              Math.max(0, col - 1)
+              Math.max(0, col - 1),
             );
             ed.selection = new vscode.Selection(pos, pos);
             ed.revealRange(
               new vscode.Range(pos, pos),
-              vscode.TextEditorRevealType.InCenter
+              vscode.TextEditorRevealType.InCenter,
             );
           }
         } catch (e) {
           // ignore errors opening
         }
-      }
-    )
+      },
+    ),
   );
 
   // ✅ (NOVO) ao ativar: se já tem um editor aberto, já analisa automaticamente
@@ -1512,7 +1558,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor(() => {
       scheduleAnalyze(0);
-    })
+    }),
   );
 
   // ✅ (NOVO) ao editar o arquivo ativo: reanalisa automaticamente (sem precisar salvar)
@@ -1530,7 +1576,7 @@ export function activate(context: vscode.ExtensionContext) {
 
       // reanalisa com debounce (pra não pesar)
       scheduleAnalyze(250);
-    })
+    }),
   );
 
   // ✅ ao salvar, continua funcionando (pode manter)
@@ -1562,7 +1608,7 @@ export function activate(context: vscode.ExtensionContext) {
       } catch {
         // silencioso
       }
-    })
+    }),
   );
 
   // CodeActionProvider: quick fix for advpl/require-with-nolock when DB = sqlserver
@@ -1586,7 +1632,7 @@ export function activate(context: vscode.ExtensionContext) {
               const title = "Replace (NOLOCK) with WITH(NOLOCK)";
               const fix = new vscode.CodeAction(
                 title,
-                vscode.CodeActionKind.QuickFix
+                vscode.CodeActionKind.QuickFix,
               );
               fix.diagnostics = [diag];
               try {
@@ -1595,17 +1641,17 @@ export function activate(context: vscode.ExtensionContext) {
                 if (m) {
                   const start = new vscode.Position(
                     diag.range.start.line,
-                    m.index
+                    m.index,
                   );
                   const end = new vscode.Position(
                     diag.range.start.line,
-                    m.index + m[0].length
+                    m.index + m[0].length,
                   );
                   const edit = new vscode.WorkspaceEdit();
                   edit.replace(
                     document.uri,
                     new vscode.Range(start, end),
-                    "WITH(NOLOCK)"
+                    "WITH(NOLOCK)",
                   );
                   fix.edit = edit;
                   fix.isPreferred = true;
@@ -1619,7 +1665,7 @@ export function activate(context: vscode.ExtensionContext) {
               const title = "Inserir cabeçalho de documentação";
               const fix = new vscode.CodeAction(
                 title,
-                vscode.CodeActionKind.QuickFix
+                vscode.CodeActionKind.QuickFix,
               );
               fix.diagnostics = [diag];
               try {
@@ -1627,7 +1673,7 @@ export function activate(context: vscode.ExtensionContext) {
                 const tpl =
                   cfg.get<string>(
                     "docHeaderTemplate",
-                    "//--------------------------------------------------\n/*/{Protheus.doc} ${FUNC_NAME}\n${DESCRIPTION}\n\n@author ${AUTHOR}\n@since ${DATE}\n/*/\n//--------------------------------------------------\n"
+                    "//--------------------------------------------------\n/*/{Protheus.doc} ${FUNC_NAME}\n${DESCRIPTION}\n\n@author ${AUTHOR}\n@since ${DATE}\n/*/\n//--------------------------------------------------\n",
                   ) || "";
                 const author = cfg.get<string>("defaultAuthor", "") || "";
 
@@ -1642,7 +1688,7 @@ export function activate(context: vscode.ExtensionContext) {
                   const text = document.lineAt(r).text;
                   const m =
                     /\b(User\s*Function|Static\s*Function|Function|Method)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i.exec(
-                      text
+                      text,
                     );
                   if (m) {
                     funcName = m[2];
@@ -1654,7 +1700,7 @@ export function activate(context: vscode.ExtensionContext) {
                     const text = document.lineAt(r).text;
                     const m =
                       /\b(User\s*Function|Static\s*Function|Function|Method)\b\s+([A-Za-z_][A-Za-z0-9_]*)/i.exec(
-                        text
+                        text,
                       );
                     if (m) {
                       funcName = m[2];
@@ -1699,7 +1745,7 @@ export function activate(context: vscode.ExtensionContext) {
               const title = "Uppercase field reference";
               const fix = new vscode.CodeAction(
                 title,
-                vscode.CodeActionKind.QuickFix
+                vscode.CodeActionKind.QuickFix,
               );
               fix.diagnostics = [diag];
               try {
@@ -1733,21 +1779,21 @@ export function activate(context: vscode.ExtensionContext) {
                   // uppercase only the field part, preserve table/parentheses/spaces
                   const replacement = chosen.whole.replace(
                     /(->\s*)([A-Za-z0-9_]+)/,
-                    (_all, p1, p2) => p1 + p2.toUpperCase()
+                    (_all, p1, p2) => p1 + p2.toUpperCase(),
                   );
                   const startPos = new vscode.Position(
                     diag.range.start.line,
-                    chosen.start
+                    chosen.start,
                   );
                   const endPos = new vscode.Position(
                     diag.range.start.line,
-                    chosen.end
+                    chosen.end,
                   );
                   const edit = new vscode.WorkspaceEdit();
                   edit.replace(
                     document.uri,
                     new vscode.Range(startPos, endPos),
-                    replacement
+                    replacement,
                   );
                   fix.edit = edit;
                   fix.isPreferred = true;
@@ -1757,13 +1803,76 @@ export function activate(context: vscode.ExtensionContext) {
                 // ignore
               }
             }
+            if (codeStr === "advpl/require-upper-fn-case") {
+              const title = "Convert function name to UPPERCASE";
+              const fix = new vscode.CodeAction(
+                title,
+                vscode.CodeActionKind.QuickFix,
+              );
+              fix.diagnostics = [diag];
+              try {
+                const lineText = document.lineAt(diag.range.start.line).text;
+                const fnPattern = /\b(STOD|CTOD|DTOS|DTOC)\b/i;
+                const m = fnPattern.exec(lineText);
+                if (m) {
+                  const start = m.index;
+                  const end = start + m[0].length;
+                  const startPos = new vscode.Position(
+                    diag.range.start.line,
+                    start,
+                  );
+                  const endPos = new vscode.Position(
+                    diag.range.start.line,
+                    end,
+                  );
+                  const edit = new vscode.WorkspaceEdit();
+                  edit.replace(
+                    document.uri,
+                    new vscode.Range(startPos, endPos),
+                    m[0].toUpperCase(),
+                  );
+                  fix.edit = edit;
+                  fix.isPreferred = true;
+                  actions.push(fix);
+                }
+              } catch (e) {
+                // ignore
+              }
+            }
+            if (codeStr === "advpl/unclosed-string") {
+              const title = "Fechar string adicionando aspa de fechamento";
+              const fix = new vscode.CodeAction(
+                title,
+                vscode.CodeActionKind.QuickFix,
+              );
+              fix.diagnostics = [diag];
+              try {
+                const lineIndex = diag.range.start.line;
+                const charIndex = diag.range.start.character;
+                const lineText = document.lineAt(lineIndex).text;
+                // try to read quote char at diagnostic column, fallback to single quote
+                const q = lineText.charAt(charIndex) || "'";
+                const quote = q === '"' ? '"' : "'";
+                const insertPos = new vscode.Position(
+                  lineIndex,
+                  lineText.length,
+                );
+                const edit = new vscode.WorkspaceEdit();
+                edit.insert(document.uri, insertPos, quote);
+                fix.edit = edit;
+                fix.isPreferred = true;
+                actions.push(fix);
+              } catch (e) {
+                // ignore
+              }
+            }
           }
 
           return actions;
         },
       },
-      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] }
-    )
+      { providedCodeActionKinds: [vscode.CodeActionKind.QuickFix] },
+    ),
   );
 
   // -------------------------
@@ -1833,22 +1942,43 @@ function safeAnalyze(sourceText: string, fileName: string): AnalysisResult {
     const rules = cfg.get<Record<string, boolean>>("rules", {});
     const hungarianSuggestInitializers = cfg.get<boolean>(
       "hungarianSuggestInitializers",
-      true
+      true,
     );
     const hungarianIgnoreAsType = cfg.get<boolean>(
       "hungarianIgnoreAsType",
-      true
+      true,
     );
     const requireDocHeaderRequireName = cfg.get<boolean>(
       "requireDocHeaderRequireName",
-      true
+      true,
     );
     const requireDocHeaderIgnoreWsMethodInWsRestful = cfg.get<boolean>(
       "requireDocHeaderIgnoreWsMethodInWsRestful",
-      true
+      true,
     );
     const database = cfg.get<string>("database", "sqlserver");
-    const ignoredFiles = cfg.get<string[]>("ignoredFiles", []);
+    // Merge ignoredFiles from all configuration scopes (global/user, workspace, workspaceFolder)
+    const inspected = cfg.inspect<string[]>("ignoredFiles");
+    const mergedIgnored: string[] = [];
+    if (inspected?.globalValue && Array.isArray(inspected.globalValue)) {
+      mergedIgnored.push(...inspected.globalValue);
+    }
+    if (inspected?.workspaceValue && Array.isArray(inspected.workspaceValue)) {
+      mergedIgnored.push(...inspected.workspaceValue);
+    }
+    if (
+      inspected?.workspaceFolderValue &&
+      Array.isArray(inspected.workspaceFolderValue)
+    ) {
+      mergedIgnored.push(...inspected.workspaceFolderValue);
+    }
+    // fallback to effective value if nothing found
+    if (!mergedIgnored.length) {
+      const ef = cfg.get<string[]>("ignoredFiles", []);
+      if (ef && ef.length) mergedIgnored.push(...ef);
+    }
+    // dedupe
+    const ignoredFiles = Array.from(new Set(mergedIgnored.map((s) => s)));
 
     return analyzer.analyzeDocument(sourceText, fileName, {
       ignoredNames,

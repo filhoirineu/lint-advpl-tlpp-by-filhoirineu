@@ -21,6 +21,8 @@ export function run(sourceText: string, fileName: string): Issue[] {
   // for each declaration, search sanitized source for usages (name followed by '(')
   for (const d of decls) {
     const name = d.name;
+    // ignore well-known Static functions invoked by the framework via StaticCall
+    if (/^(MenuDef|ModelDef|ViewDef|SchedDef)$/i.test(name)) continue;
     const usageRe = new RegExp("\\b" + name + "\\s*\\(", "gi");
     let used = false;
     let um: RegExpExecArray | null = null;
